@@ -44,7 +44,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
       <AppSidebar />
 
       {/* Main content - offset for sidebar */}
-      <div className="flex flex-1 flex-col md:ml-[284px] transition-all duration-300">
+      <div className="flex flex-1 flex-col md:ml-[280px] transition-all duration-300">
         {/* Top bar */}
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-card/80 backdrop-blur-md px-4 md:px-6">
           <div className="flex items-center gap-4 flex-1">
