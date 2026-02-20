@@ -6,12 +6,6 @@ import {
   ShieldCheck,
   TrendingUp,
   Users,
-  AlertTriangle,
-  Plus,
-  CheckCircle2,
-  QrCode,
-  Clock,
-  ArrowRight,
 } from "lucide-react";
 import {
   PieChart,
@@ -28,7 +22,7 @@ import {
 } from "recharts";
 
 const categoryData = [
-  { name: "Electronics", value: 42, color: "hsl(224, 64%, 33%)" },
+  { name: "Electronics", value: 42, color: "hsl(263, 70%, 50%)" },
   { name: "Documents", value: 28, color: "hsl(142, 71%, 45%)" },
   { name: "Accessories", value: 18, color: "hsl(38, 92%, 50%)" },
   { name: "Clothing", value: 12, color: "hsl(0, 72%, 51%)" },
@@ -44,18 +38,6 @@ const weeklyData = [
   { day: "Fri", lost: 3, found: 2 },
 ];
 
-const urgentTasks = [
-  { id: 1, text: "3 Pending Claims > 24 hours", priority: "high" },
-  { id: 2, text: "5 Unverified Reports today", priority: "medium" },
-  { id: 3, text: "2 Items awaiting handover", priority: "low" },
-];
-
-const quickActions = [
-  { label: "Add Lost Item", icon: Plus, color: "bg-primary text-primary-foreground hover:bg-primary/90" },
-  { label: "Verify Claim", icon: CheckCircle2, color: "bg-emerald-600 text-white hover:bg-emerald-700" },
-  { label: "Scan QR Code", icon: QrCode, color: "bg-violet-600 text-white hover:bg-violet-700" },
-];
-
 const recentActivity = [
   { id: 1, action: "New lost report filed", user: "Ahmed Ali", item: "Samsung Galaxy S23", time: "2 min ago", status: "lost" as const },
   { id: 2, action: "Claim approved", user: "Sara Mohammed", item: "Student ID Card", time: "15 min ago", status: "approved" as const },
@@ -68,7 +50,7 @@ const recentActivity = [
 const Index = () => {
   return (
     <DashboardLayout title="Dashboard" subtitle="Lost & Found Overview">
-      {/* KPI Cards */}
+      {/* Row 1: KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KPICard title="Active Reports" value={127} change="+12 this week" changeType="neutral" icon={FileText} />
         <KPICard title="Pending Claims" value={34} change="-5 from yesterday" changeType="positive" icon={ShieldCheck} />
@@ -76,51 +58,10 @@ const Index = () => {
         <KPICard title="Total Users" value="2,847" change="+48 new users" changeType="positive" icon={Users} />
       </div>
 
-      {/* Action Center */}
-      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {/* Urgent Tasks */}
-        <div className="rounded-xl border border-border bg-card p-5 shadow-lg shadow-blue-900/5">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="h-5 w-5 text-warning" />
-            <h3 className="text-sm font-bold text-card-foreground">Urgent Tasks</h3>
-          </div>
-          <div className="space-y-2.5">
-            {urgentTasks.map((task) => (
-              <div
-                key={task.id}
-                className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3 transition-colors hover:bg-muted/60"
-              >
-                <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium text-card-foreground">{task.text}</span>
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="rounded-xl border border-border bg-card p-5 shadow-lg shadow-blue-900/5">
-          <h3 className="text-sm font-bold text-card-foreground mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {quickActions.map((action) => (
-              <button
-                key={action.label}
-                className={`flex flex-col items-center gap-3 rounded-xl px-4 py-5 text-sm font-semibold transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5 ${action.color}`}
-              >
-                <action.icon className="h-7 w-7" />
-                <span>{action.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Charts */}
+      {/* Row 2: Charts - 50/50 */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Pie Chart */}
-        <div className="rounded-xl border border-border bg-card p-5 shadow-lg shadow-blue-900/5">
+        {/* Donut Chart */}
+        <div className="rounded-xl border border-border bg-card p-5 shadow-card">
           <h3 className="mb-4 text-sm font-bold text-card-foreground">Reports by Category</h3>
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
@@ -129,27 +70,27 @@ const Index = () => {
                   <Cell key={index} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ borderRadius: "10px", border: "1px solid hsl(220, 13%, 91%)", fontSize: "13px" }} />
+              <Tooltip contentStyle={{ borderRadius: "10px", border: "1px solid hsl(250, 10%, 90%)", fontSize: "13px" }} />
               <Legend
                 verticalAlign="bottom"
                 height={36}
                 iconType="circle"
                 iconSize={8}
-                formatter={(value) => <span style={{ color: "hsl(220, 9%, 46%)", fontSize: "12px" }}>{value}</span>}
+                formatter={(value) => <span style={{ color: "hsl(240, 5%, 46%)", fontSize: "12px" }}>{value}</span>}
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
         {/* Bar Chart */}
-        <div className="rounded-xl border border-border bg-card p-5 shadow-lg shadow-blue-900/5">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-card">
           <h3 className="mb-4 text-sm font-bold text-card-foreground">Weekly Activity</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={weeklyData} barGap={4}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 13%, 91%)" />
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "hsl(220, 9%, 46%)", fontSize: 12 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(220, 9%, 46%)", fontSize: 12 }} />
-              <Tooltip contentStyle={{ borderRadius: "10px", border: "1px solid hsl(220, 13%, 91%)", fontSize: "13px" }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(250, 10%, 90%)" />
+              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "hsl(240, 5%, 46%)", fontSize: 12 }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(240, 5%, 46%)", fontSize: 12 }} />
+              <Tooltip contentStyle={{ borderRadius: "10px", border: "1px solid hsl(250, 10%, 90%)", fontSize: "13px" }} />
               <Bar dataKey="lost" fill="hsl(0, 72%, 51%)" radius={[6, 6, 0, 0]} name="Lost" />
               <Bar dataKey="found" fill="hsl(142, 71%, 45%)" radius={[6, 6, 0, 0]} name="Found" />
             </BarChart>
@@ -157,8 +98,8 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="mt-6 rounded-xl border border-border bg-card shadow-lg shadow-blue-900/5">
+      {/* Row 3: Recent Activity */}
+      <div className="mt-6 rounded-xl border border-border bg-card shadow-card">
         <div className="border-b border-border px-5 py-4">
           <h3 className="text-sm font-bold text-card-foreground">Recent Activity</h3>
         </div>

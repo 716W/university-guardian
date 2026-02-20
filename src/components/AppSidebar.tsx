@@ -55,14 +55,14 @@ export function AppSidebar() {
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-[hsl(224,50%,8%)] border-r border-[hsl(224,30%,15%)] transition-all duration-300 ${
+      className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 ${
         collapsed ? "w-[72px]" : "w-[280px]"
       } hidden md:flex`}
     >
       {/* Header */}
       <div className={`flex items-center gap-3 px-4 h-16 border-b border-white/[0.06] ${collapsed ? "justify-center" : ""}`}>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10">
-          <GraduationCap className="h-5 w-5 text-white" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/20">
+          <GraduationCap className="h-5 w-5 text-primary-foreground" />
         </div>
         {!collapsed && (
           <div className="flex flex-col overflow-hidden">
@@ -77,7 +77,7 @@ export function AppSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+      <nav className="flex-1 overflow-y-auto scrollbar-hide px-3 py-4 space-y-5">
         {navGroups.map((group) => (
           <div key={group.label}>
             {!collapsed && (
@@ -94,7 +94,7 @@ export function AppSidebar() {
                     className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/60 transition-all duration-200 hover:bg-white/[0.08] hover:text-white/90 ${
                       collapsed ? "justify-center" : ""
                     }`}
-                    activeClassName="!bg-white/10 !text-white font-semibold"
+                    activeClassName="!bg-primary/20 !text-white font-semibold border-l-2 !border-primary"
                   >
                     <item.icon className="h-[18px] w-[18px] shrink-0" />
                     {!collapsed && <span>{item.title}</span>}
@@ -126,12 +126,12 @@ export function AppSidebar() {
       {/* User Profile Section */}
       <div className={`border-t border-white/[0.08] px-3 py-3 ${collapsed ? "flex justify-center" : ""}`}>
         {collapsed ? (
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-white">
             AM
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-white">
               AM
             </div>
             <div className="flex-1 min-w-0">
