@@ -1,7 +1,7 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { StatusBadge } from "@/components/StatusBadge";
-import { CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle, XCircle, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
 
 const claims = [
   {
@@ -65,12 +65,26 @@ const claims = [
 
 const Claims = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState<"approve" | "reject" | null>(null);
   const claim = claims[currentIndex];
 
   const getScoreColor = (score: number) => {
-    if (score >= 90) return "text-success bg-success/10 border-success/30";
-    if (score >= 75) return "text-warning bg-warning/10 border-warning/30";
-    return "text-destructive bg-destructive/10 border-destructive/30";
+    if (score >= 90) return "text-success border-success bg-success/10";
+    if (score >= 75) return "text-warning border-warning bg-warning/10";
+    return "text-destructive border-destructive bg-destructive/10";
+  };
+
+  const handleDecision = (type: "approve" | "reject") => {
+    setLoading(type);
+    setTimeout(() => {
+      setLoading(null);
+      toast({
+        title: type === "approve" ? "✅ Claim Approved!" : "❌ Claim Rejected",
+        description: type === "approve"
+          ? `Notification sent to ${claim.claimant.name}. Item ready for handover.`
+          : `${claim.claimant.name} will be notified of the rejection.`,
+      });
+    }, 1200);
   };
 
   return (
@@ -99,15 +113,36 @@ const Claims = () => {
         </div>
       </div>
 
-      {/* Split View */}
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-7">
+      {/* Split View with Centered Score */}
+      <div className="mt-4 relative grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Centered Match Score - overlapping both cards */}
+        <div className="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+          <div className={`flex h-28 w-28 flex-col items-center justify-center rounded-full border-4 shadow-lg bg-card ${getScoreColor(claim.matchScore)}`}>
+            <span className="text-3xl font-bold">{claim.matchScore}%</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider">Match</span>
+          </div>
+        </div>
+
+        {/* Mobile Match Score */}
+        <div className="flex lg:hidden justify-center">
+          <div className={`flex h-24 w-24 flex-col items-center justify-center rounded-full border-4 ${getScoreColor(claim.matchScore)}`}>
+            <span className="text-2xl font-bold">{claim.matchScore}%</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider">Match</span>
+          </div>
+        </div>
+
         {/* Found Item Details */}
-        <div className="col-span-3 rounded-lg border border-border bg-card p-5 shadow-card">
-          <h3 className="mb-4 text-sm font-semibold text-primary">Found Item Details</h3>
+        <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+          <h3 className="mb-4 text-sm font-bold text-primary">Found Item Details</h3>
           <div className="space-y-4">
+            <div className="rounded-lg border border-border bg-muted/30 p-3">
+              <div className="flex h-36 items-center justify-center rounded-md bg-muted text-sm text-muted-foreground">
+                📷 Item Photo
+              </div>
+            </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">Item</label>
-              <p className="mt-0.5 text-sm font-medium text-card-foreground">{claim.item.title}</p>
+              <p className="mt-0.5 text-sm font-semibold text-card-foreground">{claim.item.title}</p>
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">Description</label>
@@ -131,43 +166,22 @@ const Claims = () => {
               <label className="text-xs font-medium text-muted-foreground">Additional Details</label>
               <p className="mt-0.5 text-sm text-card-foreground">{claim.item.details}</p>
             </div>
-            <div className="rounded-md border border-border bg-muted/50 p-3">
-              <p className="text-xs text-muted-foreground text-center">Item Photo Placeholder</p>
-              <div className="mt-2 flex h-32 items-center justify-center rounded-md bg-muted text-sm text-muted-foreground">
-                📷 No photo uploaded
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Match Score */}
-        <div className="col-span-1 flex flex-col items-center justify-center">
-          <div
-            className={`flex h-24 w-24 flex-col items-center justify-center rounded-full border-4 ${getScoreColor(
-              claim.matchScore
-            )}`}
-          >
-            <span className="text-2xl font-bold">{claim.matchScore}%</span>
-            <span className="text-[10px] font-medium uppercase tracking-wider">Match</span>
-          </div>
-          <div className="mt-6 flex flex-col gap-2 w-full">
-            <button className="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-              <CheckCircle className="h-4 w-4" /> Approve
-            </button>
-            <button className="flex items-center justify-center gap-2 rounded-md border-2 border-destructive bg-card px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/5">
-              <XCircle className="h-4 w-4" /> Reject
-            </button>
           </div>
         </div>
 
         {/* Claimant Proof */}
-        <div className="col-span-3 rounded-lg border border-border bg-card p-5 shadow-card">
-          <h3 className="mb-4 text-sm font-semibold text-primary">Claimant Information</h3>
+        <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+          <h3 className="mb-4 text-sm font-bold text-primary">Claimant Proof</h3>
           <div className="space-y-4">
+            <div className="rounded-lg border border-border bg-muted/30 p-3">
+              <div className="flex h-36 items-center justify-center rounded-md bg-muted text-sm text-muted-foreground">
+                📎 Supporting Documents
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Name</label>
-                <p className="mt-0.5 text-sm font-medium text-card-foreground">{claim.claimant.name}</p>
+                <p className="mt-0.5 text-sm font-semibold text-card-foreground">{claim.claimant.name}</p>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Student ID</label>
@@ -186,14 +200,28 @@ const Claims = () => {
               <label className="text-xs font-medium text-muted-foreground">Proof of Ownership</label>
               <p className="mt-0.5 text-sm text-card-foreground">{claim.claimant.proof}</p>
             </div>
-            <div className="rounded-md border border-border bg-muted/50 p-3">
-              <p className="text-xs text-muted-foreground text-center">Supporting Documents</p>
-              <div className="mt-2 flex h-32 items-center justify-center rounded-md bg-muted text-sm text-muted-foreground">
-                📎 Purchase receipt attached
-              </div>
-            </div>
           </div>
         </div>
+      </div>
+
+      {/* Decision Bar */}
+      <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4 rounded-xl border border-border bg-card p-5 shadow-card">
+        <button
+          onClick={() => handleDecision("approve")}
+          disabled={loading !== null}
+          className="flex items-center justify-center gap-2 rounded-lg bg-success px-8 py-3 text-sm font-bold text-success-foreground hover:bg-success/90 transition-all disabled:opacity-50 min-w-[200px]"
+        >
+          {loading === "approve" ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />}
+          Approve Claim
+        </button>
+        <button
+          onClick={() => handleDecision("reject")}
+          disabled={loading !== null}
+          className="flex items-center justify-center gap-2 rounded-lg border-2 border-destructive bg-card px-8 py-3 text-sm font-bold text-destructive hover:bg-destructive/5 transition-all disabled:opacity-50 min-w-[200px]"
+        >
+          {loading === "reject" ? <Loader2 className="h-5 w-5 animate-spin" /> : <XCircle className="h-5 w-5" />}
+          Reject Claim
+        </button>
       </div>
     </DashboardLayout>
   );
