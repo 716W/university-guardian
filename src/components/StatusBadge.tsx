@@ -1,5 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
+import { t, type TranslationKey } from "@/lib/i18n";
 
 type StatusType = "lost" | "found" | "claimed" | "returned" | "active" | "banned" | "pending" | "approved" | "rejected";
 
@@ -15,22 +17,36 @@ const statusStyles: Record<StatusType, string> = {
   rejected: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
+const statusTranslationKeys: Record<StatusType, TranslationKey> = {
+  lost: "statusLost",
+  found: "statusFound",
+  claimed: "statusClaimed",
+  returned: "statusReturned",
+  active: "statusActive",
+  banned: "statusBanned",
+  pending: "statusPending",
+  approved: "statusApproved",
+  rejected: "statusRejected",
+};
+
 interface StatusBadgeProps {
   status: StatusType;
   className?: string;
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
+  const { lang } = useLanguage();
+
   return (
     <Badge
       variant="outline"
       className={cn(
-        "rounded-full px-2.5 py-0.5 text-xs font-medium capitalize",
+        "rounded-full px-2.5 py-0.5 text-xs font-medium",
         statusStyles[status],
         className
       )}
     >
-      {status}
+      {t(statusTranslationKeys[status], lang)}
     </Badge>
   );
 }

@@ -4,35 +4,39 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-
-const notifications = [
-  {
-    id: 1,
-    icon: ShieldCheck,
-    title: "New Claim Submitted",
-    desc: "Ahmed Ali submitted a claim for Samsung Galaxy S23",
-    time: "5 min ago",
-    unread: true,
-  },
-  {
-    id: 2,
-    icon: FileText,
-    title: "Report Matched",
-    desc: "RPT-004 has a potential match with CLM-002",
-    time: "32 min ago",
-    unread: true,
-  },
-  {
-    id: 3,
-    icon: Handshake,
-    title: "Handover Completed",
-    desc: "Laptop Charger successfully returned to Omar Hassan",
-    time: "2 hours ago",
-    unread: false,
-  },
-];
+import { useLanguage } from "@/hooks/use-language";
+import { t } from "@/lib/i18n";
 
 export function NotificationsDropdown() {
+  const { lang } = useLanguage();
+
+  const notifications = [
+    {
+      id: 1,
+      icon: ShieldCheck,
+      title: t("notifNewClaim", lang),
+      desc: lang === "AR" ? "أحمد علي قدم مطالبة لـ Samsung Galaxy S23" : "Ahmed Ali submitted a claim for Samsung Galaxy S23",
+      time: lang === "AR" ? "منذ 5 دقائق" : "5 min ago",
+      unread: true,
+    },
+    {
+      id: 2,
+      icon: FileText,
+      title: t("notifReportMatched", lang),
+      desc: lang === "AR" ? "RPT-004 لديه تطابق محتمل مع CLM-002" : "RPT-004 has a potential match with CLM-002",
+      time: lang === "AR" ? "منذ 32 دقيقة" : "32 min ago",
+      unread: true,
+    },
+    {
+      id: 3,
+      icon: Handshake,
+      title: t("notifHandoverCompleted", lang),
+      desc: lang === "AR" ? "تم إرجاع شاحن لابتوب بنجاح إلى عمر حسن" : "Laptop Charger successfully returned to Omar Hassan",
+      time: lang === "AR" ? "منذ ساعتين" : "2 hours ago",
+      unread: false,
+    },
+  ];
+
   const unreadCount = notifications.filter((n) => n.unread).length;
 
   return (
@@ -41,7 +45,7 @@ export function NotificationsDropdown() {
         <button className="relative rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground">
+            <span className="absolute end-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground">
               {unreadCount}
             </span>
           )}
@@ -49,7 +53,7 @@ export function NotificationsDropdown() {
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
         <div className="border-b border-border px-4 py-3">
-          <h4 className="text-sm font-bold text-foreground">Notifications</h4>
+          <h4 className="text-sm font-bold text-foreground">{t("notifications", lang)}</h4>
         </div>
         <div className="divide-y divide-border">
           {notifications.map((n) => (
@@ -71,7 +75,7 @@ export function NotificationsDropdown() {
         </div>
         <div className="border-t border-border px-4 py-2.5 text-center">
           <button className="text-xs font-medium text-primary hover:underline">
-            View All Notifications
+            {t("viewAllNotifications", lang)}
           </button>
         </div>
       </PopoverContent>
