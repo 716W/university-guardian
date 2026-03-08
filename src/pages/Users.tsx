@@ -5,6 +5,8 @@ import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
+import { t } from "@/lib/i18n";
 
 type User = {
   id: string; name: string; email: string; role: string; department: string;
@@ -31,6 +33,7 @@ const getRoleBadge = (role: string) => {
 };
 
 const UsersPage = () => {
+  const { lang, isRTL } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -43,10 +46,8 @@ const UsersPage = () => {
   const [newRole, setNewRole] = useState("Student");
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Add user form
   const [addForm, setAddForm] = useState({ name: "", email: "", role: "Student", department: "", id: "" });
   const [addErrors, setAddErrors] = useState<Record<string, string>>({});
-  // Edit form
   const [editForm, setEditForm] = useState({ name: "", email: "", department: "" });
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
 
@@ -74,7 +75,7 @@ const UsersPage = () => {
       const a = document.createElement("a");
       a.href = url; a.download = "users_export.csv"; a.click();
       URL.revokeObjectURL(url);
-      toast({ title: "✅ Export Complete", description: "Users data exported as CSV." });
+      toast({ title: "✅ " + t("exportComplete", lang), description: t("usersExported", lang) });
     }, 1500);
   };
 
@@ -87,54 +88,57 @@ const UsersPage = () => {
 
   const handleEditSave = () => {
     const errs: Record<string, string> = {};
-    if (!editForm.name.trim()) errs.name = "Name is required";
-    if (!editForm.email.trim()) errs.email = "Email is required";
+    if (!editForm.name.trim()) errs.name = t("nameRequired", lang);
+    if (!editForm.email.trim()) errs.email = t("emailRequired", lang);
     if (Object.keys(errs).length > 0) { setEditErrors(errs); return; }
-    toast({ title: "✅ User Updated", description: `${editUser?.name}'s profile has been updated.` });
+    toast({ title: "✅ " + (lang === "AR" ? "تم تحديث المستخدم" : "User Updated"), description: `${editUser?.name} ${lang === "AR" ? "تم تحديث ملفه الشخصي" : "'s profile has been updated."}` });
     setEditUser(null);
   };
 
   const handleAddUser = () => {
     const errs: Record<string, string> = {};
-    if (!addForm.name.trim()) errs.name = "Name is required";
-    if (!addForm.email.trim()) errs.email = "Email is required";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addForm.email)) errs.email = "Invalid email";
+    if (!addForm.name.trim()) errs.name = t("nameRequired", lang);
+    if (!addForm.email.trim()) errs.email = t("emailRequired", lang);
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addForm.email)) errs.email = t("invalidEmail", lang);
     if (Object.keys(errs).length > 0) { setAddErrors(errs); return; }
-    toast({ title: "✅ User Added", description: `${addForm.name} has been added successfully.` });
+    toast({ title: "✅ " + (lang === "AR" ? "تمت إضافة المستخدم" : "User Added"), description: `${addForm.name} ${lang === "AR" ? "تمت إضافته بنجاح" : "has been added successfully."}` });
     setShowAddUser(false);
     setAddForm({ name: "", email: "", role: "Student", department: "", id: "" });
   };
 
   const handleChangeRole = () => {
-    toast({ title: "✅ Role Updated", description: `${changeRoleUser?.name}'s role changed to ${newRole}.` });
+    toast({ title: "✅ " + (lang === "AR" ? "تم تحديث الدور" : "Role Updated"), description: `${changeRoleUser?.name} ${lang === "AR" ? "تم تغيير دوره إلى" : "'s role changed to"} ${newRole}.` });
     setChangeRoleUser(null);
   };
 
   const handleBan = () => {
-    toast({ title: "🚫 User Banned", description: `${banUser?.name} has been permanently banned.` });
+    toast({ title: "🚫 " + (lang === "AR" ? "تم حظر المستخدم" : "User Banned"), description: `${banUser?.name} ${lang === "AR" ? "تم حظره نهائياً" : "has been permanently banned."}` });
     setBanUser(null);
   };
 
   return (
-    <DashboardLayout title="Users" subtitle="Manage students and staff accounts">
+    <DashboardLayout title={t("users", lang)} subtitle={t("usersSubtitle", lang)}>
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4 shadow-card">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input type="text" placeholder="Search users..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+          <Search className={`absolute ${isRTL ? "right-3" : "left-3"} top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground`} />
+          <input type="text" placeholder={t("searchUsers", lang)} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+            className={`w-full rounded-md border border-input bg-background py-2 ${isRTL ? "pr-9 pl-3" : "pl-9 pr-3"} text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
         </div>
         <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-          <option value="all">All Roles</option><option value="student">Student</option><option value="admin">Admin</option><option value="superadmin">Super Admin</option>
+          <option value="all">{t("allRoles", lang)}</option>
+          <option value="student">{t("student", lang)}</option>
+          <option value="admin">{t("admin", lang)}</option>
+          <option value="superadmin">{t("superAdmin", lang)}</option>
         </select>
         <button onClick={handleExport} disabled={exporting}
           className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50">
-          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Export
+          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} {t("export", lang)}
         </button>
         <button onClick={() => { setShowAddUser(true); setAddForm({ name: "", email: "", role: "Student", department: "", id: "" }); setAddErrors({}); }}
           className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-          <UserPlus className="h-4 w-4" /> Add User
+          <UserPlus className="h-4 w-4" /> {t("addUser", lang)}
         </button>
       </div>
 
@@ -144,14 +148,14 @@ const UsersPage = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">ID</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Email</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Role</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Department</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Joined</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Actions</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thId", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thName", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thEmail", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thRole", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thDepartment", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thStatus", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thJoined", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thActions", lang)}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -175,16 +179,16 @@ const UsersPage = () => {
                         <MoreHorizontal className="h-4 w-4" />
                       </button>
                       {openMenuId === user.id && (
-                        <div className="absolute right-0 top-full z-50 mt-1 w-44 rounded-lg border border-border bg-popover p-1 shadow-lg">
+                        <div className={`absolute ${isRTL ? "left-0" : "right-0"} top-full z-50 mt-1 w-44 rounded-lg border border-border bg-popover p-1 shadow-lg`}>
                           <button onClick={() => openEditUser(user)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-popover-foreground hover:bg-muted">
-                            <Shield className="h-4 w-4" /> Edit Profile
+                            <Shield className="h-4 w-4" /> {t("editProfile", lang)}
                           </button>
                           <button onClick={() => { setChangeRoleUser(user); setNewRole(user.role); setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-popover-foreground hover:bg-muted">
-                            <KeyRound className="h-4 w-4" /> Change Role
+                            <KeyRound className="h-4 w-4" /> {t("changeRole", lang)}
                           </button>
                           <div className="my-1 h-px bg-border" />
                           <button onClick={() => { setBanUser(user); setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10">
-                            <Ban className="h-4 w-4" /> Ban User
+                            <Ban className="h-4 w-4" /> {t("banUser", lang)}
                           </button>
                         </div>
                       )}
@@ -196,7 +200,7 @@ const UsersPage = () => {
           </table>
         </div>
         <div className="flex items-center justify-between border-t border-border px-4 py-3">
-          <p className="text-sm text-muted-foreground">Showing {filtered.length} of {users.length} users</p>
+          <p className="text-sm text-muted-foreground">{t("showing", lang)} {filtered.length} {t("of", lang)} {users.length} {t("users", lang).toLowerCase()}</p>
         </div>
       </div>
 
@@ -204,9 +208,9 @@ const UsersPage = () => {
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setSelectedUser(null)} />
-          <div className="relative w-full max-w-md bg-card border-l border-border shadow-2xl overflow-y-auto animate-slide-in">
+          <div className={`relative w-full max-w-md bg-card ${isRTL ? "border-e" : "border-s"} border-border shadow-2xl overflow-y-auto animate-slide-in`}>
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-6 py-4">
-              <h2 className="text-lg font-bold text-card-foreground">User Profile</h2>
+              <h2 className="text-lg font-bold text-card-foreground">{t("userProfile", lang)}</h2>
               <button onClick={() => setSelectedUser(null)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="p-6 space-y-6">
@@ -217,20 +221,20 @@ const UsersPage = () => {
                 <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs ${getRoleBadge(selectedUser.role)}`}>{selectedUser.role}</span>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-lg border border-border bg-muted/30 p-3 text-center"><FileText className="mx-auto h-4 w-4 text-muted-foreground" /><p className="mt-1 text-lg font-bold text-card-foreground">{selectedUser.reports}</p><p className="text-[10px] text-muted-foreground">Reports</p></div>
-                <div className="rounded-lg border border-border bg-muted/30 p-3 text-center"><ShieldCheck className="mx-auto h-4 w-4 text-muted-foreground" /><p className="mt-1 text-lg font-bold text-card-foreground">{selectedUser.claims}</p><p className="text-[10px] text-muted-foreground">Claims</p></div>
-                <div className="rounded-lg border border-border bg-muted/30 p-3 text-center"><Activity className="mx-auto h-4 w-4 text-muted-foreground" /><p className="mt-1 text-lg font-bold text-card-foreground">{selectedUser.status === "active" ? "Online" : "Offline"}</p><p className="text-[10px] text-muted-foreground">Status</p></div>
+                <div className="rounded-lg border border-border bg-muted/30 p-3 text-center"><FileText className="mx-auto h-4 w-4 text-muted-foreground" /><p className="mt-1 text-lg font-bold text-card-foreground">{selectedUser.reports}</p><p className="text-[10px] text-muted-foreground">{t("reports", lang)}</p></div>
+                <div className="rounded-lg border border-border bg-muted/30 p-3 text-center"><ShieldCheck className="mx-auto h-4 w-4 text-muted-foreground" /><p className="mt-1 text-lg font-bold text-card-foreground">{selectedUser.claims}</p><p className="text-[10px] text-muted-foreground">{t("claims", lang)}</p></div>
+                <div className="rounded-lg border border-border bg-muted/30 p-3 text-center"><Activity className="mx-auto h-4 w-4 text-muted-foreground" /><p className="mt-1 text-lg font-bold text-card-foreground">{selectedUser.status === "active" ? (lang === "AR" ? "متصل" : "Online") : (lang === "AR" ? "غير متصل" : "Offline")}</p><p className="text-[10px] text-muted-foreground">{t("thStatus", lang)}</p></div>
               </div>
               <div className="space-y-3">
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Department</span><span className="font-medium text-card-foreground">{selectedUser.department}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">ID</span><span className="font-mono text-card-foreground">{selectedUser.id}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Joined</span><span className="text-card-foreground">{selectedUser.joined}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("department", lang)}</span><span className="font-medium text-card-foreground">{selectedUser.department}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("thId", lang)}</span><span className="font-mono text-card-foreground">{selectedUser.id}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("thJoined", lang)}</span><span className="text-card-foreground">{selectedUser.joined}</span></div>
               </div>
               <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-                <div className="flex items-center gap-2 mb-3"><AlertTriangle className="h-4 w-4 text-destructive" /><h4 className="text-sm font-bold text-destructive">Danger Zone</h4></div>
+                <div className="flex items-center gap-2 mb-3"><AlertTriangle className="h-4 w-4 text-destructive" /><h4 className="text-sm font-bold text-destructive">{t("dangerZone", lang)}</h4></div>
                 <div className="space-y-2">
-                  <button className="flex w-full items-center justify-center gap-2 rounded-md border border-destructive/30 bg-card px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"><KeyRound className="h-4 w-4" /> Reset Password</button>
-                  <button onClick={() => { setBanUser(selectedUser); setSelectedUser(null); }} className="flex w-full items-center justify-center gap-2 rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors"><Ban className="h-4 w-4" /> Permanently Ban</button>
+                  <button className="flex w-full items-center justify-center gap-2 rounded-md border border-destructive/30 bg-card px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"><KeyRound className="h-4 w-4" /> {t("resetPassword", lang)}</button>
+                  <button onClick={() => { setBanUser(selectedUser); setSelectedUser(null); }} className="flex w-full items-center justify-center gap-2 rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors"><Ban className="h-4 w-4" /> {t("permanentlyBan", lang)}</button>
                 </div>
               </div>
             </div>
@@ -241,39 +245,39 @@ const UsersPage = () => {
       {/* Add User Modal */}
       <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Add New User</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("addNewUser", lang)}</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Full Name</label>
-                <input type="text" placeholder="e.g., Ahmed Ali" value={addForm.name} onChange={(e) => { setAddForm(f => ({ ...f, name: e.target.value })); setAddErrors(e => ({ ...e, name: "" })); }}
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("fullName", lang)}</label>
+                <input type="text" placeholder={lang === "AR" ? "مثال: أحمد علي" : "e.g., Ahmed Ali"} value={addForm.name} onChange={(e) => { setAddForm(f => ({ ...f, name: e.target.value })); setAddErrors(e => ({ ...e, name: "" })); }}
                   className={`w-full rounded-md border ${addErrors.name ? "border-destructive" : "border-input"} bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
                 {addErrors.name && <p className="mt-1 text-xs text-destructive">{addErrors.name}</p>}
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</label>
-                <input type="email" placeholder="e.g., ahmed@gmail.com" value={addForm.email} onChange={(e) => { setAddForm(f => ({ ...f, email: e.target.value })); setAddErrors(e => ({ ...e, email: "" })); }}
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("email", lang)}</label>
+                <input type="email" placeholder="ahmed@gmail.com" value={addForm.email} onChange={(e) => { setAddForm(f => ({ ...f, email: e.target.value })); setAddErrors(e => ({ ...e, email: "" })); }}
                   className={`w-full rounded-md border ${addErrors.email ? "border-destructive" : "border-input"} bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
                 {addErrors.email && <p className="mt-1 text-xs text-destructive">{addErrors.email}</p>}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Role</label>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("role", lang)}</label>
                 <select value={addForm.role} onChange={(e) => setAddForm(f => ({ ...f, role: e.target.value }))}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-                  <option>Student</option><option>Staff</option><option>Admin</option>
+                  <option>{t("student", lang)}</option><option>{t("staff", lang)}</option><option>{t("admin", lang)}</option>
                 </select>
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Department</label>
-                <input type="text" placeholder="e.g., Computer Science" value={addForm.department} onChange={(e) => setAddForm(f => ({ ...f, department: e.target.value }))}
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("department", lang)}</label>
+                <input type="text" placeholder={lang === "AR" ? "مثال: علوم الحاسوب" : "e.g., Computer Science"} value={addForm.department} onChange={(e) => setAddForm(f => ({ ...f, department: e.target.value }))}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
             </div>
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setShowAddUser(false)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">Cancel</button>
-              <button onClick={handleAddUser} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">Add User</button>
+              <button onClick={() => setShowAddUser(false)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">{t("cancel", lang)}</button>
+              <button onClick={handleAddUser} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">{t("addUser", lang)}</button>
             </div>
           </div>
         </DialogContent>
@@ -282,28 +286,28 @@ const UsersPage = () => {
       {/* Edit User Modal */}
       <Dialog open={!!editUser} onOpenChange={() => setEditUser(null)}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Edit User – {editUser?.name}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("editProfile", lang)} – {editUser?.name}</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-2">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Full Name</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("fullName", lang)}</label>
               <input value={editForm.name} onChange={(e) => { setEditForm(f => ({ ...f, name: e.target.value })); setEditErrors(e => ({ ...e, name: "" })); }}
                 className={`w-full rounded-md border ${editErrors.name ? "border-destructive" : "border-input"} bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
               {editErrors.name && <p className="mt-1 text-xs text-destructive">{editErrors.name}</p>}
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("email", lang)}</label>
               <input value={editForm.email} onChange={(e) => { setEditForm(f => ({ ...f, email: e.target.value })); setEditErrors(e => ({ ...e, email: "" })); }}
                 className={`w-full rounded-md border ${editErrors.email ? "border-destructive" : "border-input"} bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
               {editErrors.email && <p className="mt-1 text-xs text-destructive">{editErrors.email}</p>}
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Department</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("department", lang)}</label>
               <input value={editForm.department} onChange={(e) => setEditForm(f => ({ ...f, department: e.target.value }))}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setEditUser(null)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">Cancel</button>
-              <button onClick={handleEditSave} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">Save Changes</button>
+              <button onClick={() => setEditUser(null)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">{t("cancel", lang)}</button>
+              <button onClick={handleEditSave} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">{t("saveChanges", lang)}</button>
             </div>
           </div>
         </DialogContent>
@@ -312,16 +316,16 @@ const UsersPage = () => {
       {/* Change Role Modal */}
       <Dialog open={!!changeRoleUser} onOpenChange={() => setChangeRoleUser(null)}>
         <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>Change Role</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("changeRole", lang)}</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-2">
-            <p className="text-sm text-muted-foreground">Update role for <span className="font-medium text-foreground">{changeRoleUser?.name}</span></p>
+            <p className="text-sm text-muted-foreground">{lang === "AR" ? "تحديث الدور لـ" : "Update role for"} <span className="font-medium text-foreground">{changeRoleUser?.name}</span></p>
             <select value={newRole} onChange={(e) => setNewRole(e.target.value)}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-              <option>Student</option><option>Staff</option><option>Admin</option>
+              <option>{t("student", lang)}</option><option>{t("staff", lang)}</option><option>{t("admin", lang)}</option>
             </select>
             <div className="flex gap-3">
-              <button onClick={() => setChangeRoleUser(null)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">Cancel</button>
-              <button onClick={handleChangeRole} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">Update Role</button>
+              <button onClick={() => setChangeRoleUser(null)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">{t("cancel", lang)}</button>
+              <button onClick={handleChangeRole} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">{t("updateRole", lang)}</button>
             </div>
           </div>
         </DialogContent>
@@ -331,14 +335,16 @@ const UsersPage = () => {
       <AlertDialog open={!!banUser} onOpenChange={() => setBanUser(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Ban {banUser?.name}?</AlertDialogTitle>
+            <AlertDialogTitle>{t("banUser", lang)} {banUser?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently ban this user from the system. They will no longer be able to access any features or submit reports.
+              {lang === "AR"
+                ? "سيتم حظر هذا المستخدم نهائياً من النظام. لن يتمكن من الوصول إلى أي ميزات أو تقديم بلاغات."
+                : "This will permanently ban this user from the system. They will no longer be able to access any features or submit reports."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBan} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Ban User</AlertDialogAction>
+            <AlertDialogCancel>{t("cancel", lang)}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBan} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{t("banUser", lang)}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

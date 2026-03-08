@@ -1,6 +1,8 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Search, Download } from "lucide-react";
 import { useState } from "react";
+import { useLanguage } from "@/hooks/use-language";
+import { t } from "@/lib/i18n";
 
 const logs = [
   { id: 1, admin: "Admin Manager", action: "Approved claim CLM-001", target: "Ahmed Ali – Samsung Galaxy S23", timestamp: "2026-02-09 10:32:15", ip: "192.168.1.45" },
@@ -18,6 +20,7 @@ const logs = [
 ];
 
 const AuditLogs = () => {
+  const { lang, isRTL } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filtered = logs.filter(
@@ -28,75 +31,46 @@ const AuditLogs = () => {
   );
 
   return (
-    <DashboardLayout title="Audit Logs" subtitle="Security and activity trail">
-      {/* Toolbar */}
+    <DashboardLayout title={t("auditLogs", lang)} subtitle={t("auditLogsSubtitle", lang)}>
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4 shadow-card">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search logs..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          />
+          <Search className={`absolute ${isRTL ? "right-3" : "left-3"} top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground`} />
+          <input type="text" placeholder={t("searchLogs", lang)} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+            className={`w-full rounded-md border border-input bg-background py-2 ${isRTL ? "pr-9 pl-3" : "pl-9 pr-3"} text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
         </div>
         <button className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted">
-          <Download className="h-4 w-4" /> Export Logs
+          <Download className="h-4 w-4" /> {t("exportLogs", lang)}
         </button>
       </div>
 
-      {/* Log Table */}
       <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card shadow-card">
         <div className="overflow-x-auto">
           <table className="w-full text-sm font-mono">
             <thead>
               <tr className="border-b border-border bg-foreground/5">
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Timestamp
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Admin
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Action
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Target
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  IP Address
-                </th>
+                <th className="px-4 py-3 text-start text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("thTimestamp", lang)}</th>
+                <th className="px-4 py-3 text-start text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("thAdmin", lang)}</th>
+                <th className="px-4 py-3 text-start text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("thAction", lang)}</th>
+                <th className="px-4 py-3 text-start text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("thTarget", lang)}</th>
+                <th className="px-4 py-3 text-start text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("thIpAddress", lang)}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map((log) => (
                 <tr key={log.id} className="transition-colors hover:bg-muted/30">
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
-                    {log.timestamp}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-card-foreground">
-                    {log.admin}
-                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{log.timestamp}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-xs text-card-foreground">{log.admin}</td>
                   <td className="px-4 py-3 text-xs">
-                    <span
-                      className={`${
-                        log.action.includes("Deleted") || log.action.includes("Banned")
-                          ? "text-destructive"
-                          : log.action.includes("Approved") || log.action.includes("Completed")
-                          ? "text-success"
-                          : "text-card-foreground"
-                      }`}
-                    >
-                      {log.action}
-                    </span>
+                    <span className={`${
+                      log.action.includes("Deleted") || log.action.includes("Banned")
+                        ? "text-destructive"
+                        : log.action.includes("Approved") || log.action.includes("Completed")
+                        ? "text-success"
+                        : "text-card-foreground"
+                    }`}>{log.action}</span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground max-w-xs truncate">
-                    {log.target}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
-                    {log.ip}
-                  </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground max-w-xs truncate">{log.target}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{log.ip}</td>
                 </tr>
               ))}
             </tbody>
@@ -104,7 +78,7 @@ const AuditLogs = () => {
         </div>
         <div className="border-t border-border px-4 py-3">
           <p className="text-xs text-muted-foreground">
-            Showing {filtered.length} of {logs.length} log entries
+            {t("showing", lang)} {filtered.length} {t("of", lang)} {logs.length} {t("logEntries", lang)}
           </p>
         </div>
       </div>

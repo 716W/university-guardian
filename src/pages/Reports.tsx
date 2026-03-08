@@ -5,6 +5,8 @@ import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
+import { t } from "@/lib/i18n";
 
 const reportImages: Record<string, string> = {
   Electronics: "📱",
@@ -39,6 +41,7 @@ const reports: Report[] = [
 ];
 
 const Reports = () => {
+  const { lang, isRTL } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -46,7 +49,6 @@ const Reports = () => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Modal states
   const [viewReport, setViewReport] = useState<Report | null>(null);
   const [editReport, setEditReport] = useState<Report | null>(null);
   const [deleteReport, setDeleteReport] = useState<Report | null>(null);
@@ -56,9 +58,7 @@ const Reports = () => {
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpenMenuId(null);
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenuId(null);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -89,46 +89,46 @@ const Reports = () => {
 
   const handleEditSave = () => {
     const errs: Record<string, string> = {};
-    if (!editForm.title.trim()) errs.title = "Title is required";
-    if (!editForm.location.trim()) errs.location = "Location is required";
+    if (!editForm.title.trim()) errs.title = t("titleRequired", lang);
+    if (!editForm.location.trim()) errs.location = t("locationRequired", lang);
     if (Object.keys(errs).length > 0) { setEditErrors(errs); return; }
-    toast({ title: "✅ Report Updated", description: `${editReport?.id} has been updated successfully.` });
+    toast({ title: "✅ " + (lang === "AR" ? "تم تحديث البلاغ" : "Report Updated"), description: `${editReport?.id} ${lang === "AR" ? "تم تحديثه بنجاح" : "has been updated successfully."}` });
     setEditReport(null);
   };
 
   const handleDelete = () => {
-    toast({ title: "🗑️ Report Deleted", description: `${deleteReport?.id} has been removed.` });
+    toast({ title: "🗑️ " + (lang === "AR" ? "تم حذف البلاغ" : "Report Deleted"), description: `${deleteReport?.id} ${lang === "AR" ? "تمت إزالته" : "has been removed."}` });
     setDeleteReport(null);
   };
 
   return (
-    <DashboardLayout title="Reports" subtitle="Manage lost and found item reports">
+    <DashboardLayout title={t("reports", lang)} subtitle={t("reportsSubtitle", lang)}>
       {/* Filters Bar */}
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4 shadow-card">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input type="text" placeholder="Search reports..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+          <Search className={`absolute ${isRTL ? "right-3" : "left-3"} top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground`} />
+          <input type="text" placeholder={t("searchReports", lang)} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+            className={`w-full rounded-md border border-input bg-background py-2 ${isRTL ? "pr-9 pl-3" : "pl-9 pr-3"} text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
         </div>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-          <option value="all">All Status</option>
-          <option value="lost">Lost</option>
-          <option value="found">Found</option>
+          <option value="all">{t("allStatus", lang)}</option>
+          <option value="lost">{t("lost", lang)}</option>
+          <option value="found">{t("found", lang)}</option>
         </select>
         <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-          <option value="all">All Categories</option>
-          <option value="Electronics">Electronics</option>
-          <option value="Documents">Documents</option>
-          <option value="Accessories">Accessories</option>
-          <option value="Clothing">Clothing</option>
+          <option value="all">{t("allCategories", lang)}</option>
+          <option value="Electronics">{lang === "AR" ? "إلكترونيات" : "Electronics"}</option>
+          <option value="Documents">{lang === "AR" ? "مستندات" : "Documents"}</option>
+          <option value="Accessories">{lang === "AR" ? "إكسسوارات" : "Accessories"}</option>
+          <option value="Clothing">{lang === "AR" ? "ملابس" : "Clothing"}</option>
         </select>
         <button onClick={() => setShowFilters(true)} className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted">
-          <Filter className="h-4 w-4" /> More Filters
+          <Filter className="h-4 w-4" /> {t("moreFilters", lang)}
         </button>
         <button className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-          <Download className="h-4 w-4" /> Export
+          <Download className="h-4 w-4" /> {t("export", lang)}
         </button>
       </div>
 
@@ -138,15 +138,15 @@ const Reports = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="px-4 py-3 text-left"><input type="checkbox" checked={selectedRows.size === filtered.length && filtered.length > 0} onChange={toggleAll} className="h-4 w-4 rounded border-input text-primary accent-primary" /></th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">ID</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Item</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Category</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Location</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Reporter</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Actions</th>
+                <th className="px-4 py-3 text-start"><input type="checkbox" checked={selectedRows.size === filtered.length && filtered.length > 0} onChange={toggleAll} className="h-4 w-4 rounded border-input text-primary accent-primary" /></th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thId", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thItem", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thCategory", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thLocation", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thReporter", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thDate", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thStatus", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thActions", lang)}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -160,8 +160,8 @@ const Reports = () => {
                       <div>
                         <span className="font-medium text-card-foreground">{report.title}</span>
                         {report.hasMatch && (
-                          <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                            <Link2 className="h-3 w-3" /> High Match
+                          <span className={`${isRTL ? "mr-2" : "ml-2"} inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary`}>
+                            <Link2 className="h-3 w-3" /> {t("highMatch", lang)}
                           </span>
                         )}
                       </div>
@@ -178,19 +178,19 @@ const Reports = () => {
                         <MoreHorizontal className="h-4 w-4" />
                       </button>
                       {openMenuId === report.id && (
-                        <div className="absolute right-0 top-full z-50 mt-1 w-44 rounded-lg border border-border bg-popover p-1 shadow-lg">
+                        <div className={`absolute ${isRTL ? "left-0" : "right-0"} top-full z-50 mt-1 w-44 rounded-lg border border-border bg-popover p-1 shadow-lg`}>
                           <button onClick={() => { setViewReport(report); setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-popover-foreground hover:bg-muted">
-                            <Eye className="h-4 w-4" /> View Details
+                            <Eye className="h-4 w-4" /> {t("viewDetails", lang)}
                           </button>
                           <button onClick={() => openEdit(report)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-popover-foreground hover:bg-muted">
-                            <Edit className="h-4 w-4" /> Edit
+                            <Edit className="h-4 w-4" /> {t("edit", lang)}
                           </button>
                           <button onClick={() => { setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-popover-foreground hover:bg-muted">
-                            <RefreshCw className="h-4 w-4" /> Change Status
+                            <RefreshCw className="h-4 w-4" /> {t("changeStatus", lang)}
                           </button>
                           <div className="my-1 h-px bg-border" />
                           <button onClick={() => { setDeleteReport(report); setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10">
-                            <Trash2 className="h-4 w-4" /> Delete
+                            <Trash2 className="h-4 w-4" /> {t("delete", lang)}
                           </button>
                         </div>
                       )}
@@ -203,14 +203,14 @@ const Reports = () => {
         </div>
         <div className="flex items-center justify-between border-t border-border px-4 py-3">
           <p className="text-sm text-muted-foreground">
-            Showing {filtered.length} of {reports.length} reports
-            {selectedRows.size > 0 && <span className="ml-2 font-medium text-primary">({selectedRows.size} selected)</span>}
+            {t("showing", lang)} {filtered.length} {t("of", lang)} {reports.length} {t("reports", lang).toLowerCase()}
+            {selectedRows.size > 0 && <span className="ms-2 font-medium text-primary">({selectedRows.size} {t("selected", lang)})</span>}
           </p>
           <div className="flex gap-1">
-            <button className="rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted">Previous</button>
+            <button className="rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted">{t("previous", lang)}</button>
             <button className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground">1</button>
             <button className="rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted">2</button>
-            <button className="rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted">Next</button>
+            <button className="rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted">{t("next", lang)}</button>
           </div>
         </div>
       </div>
@@ -230,17 +230,17 @@ const Reports = () => {
                 <span className="text-6xl">{reportImages[viewReport.category]}</span>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div><p className="text-xs font-medium text-muted-foreground">Report ID</p><p className="text-sm font-semibold text-foreground font-mono">{viewReport.id}</p></div>
-                <div><p className="text-xs font-medium text-muted-foreground">Status</p><StatusBadge status={viewReport.status} /></div>
-                <div><p className="text-xs font-medium text-muted-foreground">Category</p><p className="text-sm text-foreground">{viewReport.category}</p></div>
-                <div><p className="text-xs font-medium text-muted-foreground">Location</p><p className="text-sm text-foreground">{viewReport.location}</p></div>
-                <div><p className="text-xs font-medium text-muted-foreground">Reporter</p><p className="text-sm text-foreground">{viewReport.reporter}</p></div>
-                <div><p className="text-xs font-medium text-muted-foreground">Date</p><p className="text-sm text-foreground">{viewReport.date}</p></div>
+                <div><p className="text-xs font-medium text-muted-foreground">{t("reportId", lang)}</p><p className="text-sm font-semibold text-foreground font-mono">{viewReport.id}</p></div>
+                <div><p className="text-xs font-medium text-muted-foreground">{t("thStatus", lang)}</p><StatusBadge status={viewReport.status} /></div>
+                <div><p className="text-xs font-medium text-muted-foreground">{t("thCategory", lang)}</p><p className="text-sm text-foreground">{viewReport.category}</p></div>
+                <div><p className="text-xs font-medium text-muted-foreground">{t("thLocation", lang)}</p><p className="text-sm text-foreground">{viewReport.location}</p></div>
+                <div><p className="text-xs font-medium text-muted-foreground">{t("thReporter", lang)}</p><p className="text-sm text-foreground">{viewReport.reporter}</p></div>
+                <div><p className="text-xs font-medium text-muted-foreground">{t("thDate", lang)}</p><p className="text-sm text-foreground">{viewReport.date}</p></div>
               </div>
-              <div><p className="text-xs font-medium text-muted-foreground">Description</p><p className="text-sm text-foreground mt-1">{viewReport.description}</p></div>
+              <div><p className="text-xs font-medium text-muted-foreground">{t("description", lang)}</p><p className="text-sm text-foreground mt-1">{viewReport.description}</p></div>
               {viewReport.hasMatch && (
                 <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary">
-                  <Link2 className="h-4 w-4" /> This item has potential matches in the system
+                  <Link2 className="h-4 w-4" /> {t("potentialMatch", lang)}
                 </div>
               )}
             </div>
@@ -251,35 +251,35 @@ const Reports = () => {
       {/* Edit Modal */}
       <Dialog open={!!editReport} onOpenChange={() => setEditReport(null)}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Edit Report – {editReport?.id}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("editReport", lang)} – {editReport?.id}</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-2">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Title</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("title", lang)}</label>
               <input value={editForm.title} onChange={(e) => { setEditForm(f => ({ ...f, title: e.target.value })); setEditErrors(e => ({ ...e, title: "" })); }}
                 className={`w-full rounded-md border ${editErrors.title ? "border-destructive" : "border-input"} bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
               {editErrors.title && <p className="mt-1 text-xs text-destructive">{editErrors.title}</p>}
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Location</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("thLocation", lang)}</label>
               <input value={editForm.location} onChange={(e) => { setEditForm(f => ({ ...f, location: e.target.value })); setEditErrors(e => ({ ...e, location: "" })); }}
                 className={`w-full rounded-md border ${editErrors.location ? "border-destructive" : "border-input"} bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
               {editErrors.location && <p className="mt-1 text-xs text-destructive">{editErrors.location}</p>}
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Status</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("thStatus", lang)}</label>
               <select value={editForm.status} onChange={(e) => setEditForm(f => ({ ...f, status: e.target.value as "lost" | "found" }))}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-                <option value="lost">Lost</option><option value="found">Found</option>
+                <option value="lost">{t("lost", lang)}</option><option value="found">{t("found", lang)}</option>
               </select>
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Description</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("description", lang)}</label>
               <textarea value={editForm.description} onChange={(e) => setEditForm(f => ({ ...f, description: e.target.value }))} rows={3}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
             </div>
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setEditReport(null)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">Cancel</button>
-              <button onClick={handleEditSave} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">Save Changes</button>
+              <button onClick={() => setEditReport(null)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">{t("cancel", lang)}</button>
+              <button onClick={handleEditSave} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">{t("saveChanges", lang)}</button>
             </div>
           </div>
         </DialogContent>
@@ -289,15 +289,17 @@ const Reports = () => {
       <AlertDialog open={!!deleteReport} onOpenChange={() => setDeleteReport(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Report {deleteReport?.id}?</AlertDialogTitle>
+            <AlertDialogTitle>{t("deleteReport", lang)} {deleteReport?.id}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove "{deleteReport?.title}" from the system. This action cannot be undone.
+              {lang === "AR"
+                ? `سيتم حذف "${deleteReport?.title}" نهائياً من النظام. لا يمكن التراجع عن هذا الإجراء.`
+                : `This will permanently remove "${deleteReport?.title}" from the system. This action cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("cancel", lang)}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+              {t("delete", lang)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -307,33 +309,35 @@ const Reports = () => {
       {showFilters && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setShowFilters(false)} />
-          <div className="relative w-full max-w-sm bg-card border-l border-border shadow-2xl overflow-y-auto animate-slide-in">
+          <div className={`relative w-full max-w-sm bg-card ${isRTL ? "border-e" : "border-s"} border-border shadow-2xl overflow-y-auto animate-slide-in`}>
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-6 py-4">
-              <h2 className="text-lg font-bold text-card-foreground">Advanced Filters</h2>
+              <h2 className="text-lg font-bold text-card-foreground">{t("advancedFilters", lang)}</h2>
               <button onClick={() => setShowFilters(false)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="p-6 space-y-5">
               <div>
-                <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-muted-foreground"><Calendar className="h-3.5 w-3.5" /> Date From</label>
+                <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-muted-foreground"><Calendar className="h-3.5 w-3.5" /> {lang === "AR" ? "من تاريخ" : "Date From"}</label>
                 <input type="date" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div>
-                <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-muted-foreground"><Calendar className="h-3.5 w-3.5" /> Date To</label>
+                <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-muted-foreground"><Calendar className="h-3.5 w-3.5" /> {lang === "AR" ? "إلى تاريخ" : "Date To"}</label>
                 <input type="date" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Match Status</label>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{lang === "AR" ? "حالة التطابق" : "Match Status"}</label>
                 <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-                  <option value="all">All</option><option value="matched">Has Match</option><option value="unmatched">No Match</option>
+                  <option value="all">{lang === "AR" ? "الكل" : "All"}</option>
+                  <option value="matched">{lang === "AR" ? "يوجد تطابق" : "Has Match"}</option>
+                  <option value="unmatched">{lang === "AR" ? "لا يوجد تطابق" : "No Match"}</option>
                 </select>
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Location</label>
-                <input type="text" placeholder="Filter by location..." className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("thLocation", lang)}</label>
+                <input type="text" placeholder={lang === "AR" ? "تصفية حسب الموقع..." : "Filter by location..."} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div className="flex gap-3 pt-4">
-                <button onClick={() => setShowFilters(false)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">Clear All</button>
-                <button onClick={() => setShowFilters(false)} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">Apply Filters</button>
+                <button onClick={() => setShowFilters(false)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">{t("clearAll", lang)}</button>
+                <button onClick={() => setShowFilters(false)} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">{t("applyFilters", lang)}</button>
               </div>
             </div>
           </div>

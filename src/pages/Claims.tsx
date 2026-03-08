@@ -1,8 +1,10 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { StatusBadge } from "@/components/StatusBadge";
-import { CheckCircle, XCircle, ChevronLeft, Loader2, Eye, ArrowLeft } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Eye, ArrowLeft, ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
+import { t } from "@/lib/i18n";
 
 type Claim = {
   id: string;
@@ -11,21 +13,8 @@ type Claim = {
   dateSubmitted: string;
   matchScore: number;
   status: "pending" | "approved" | "rejected";
-  item: {
-    title: string;
-    description: string;
-    location: string;
-    date: string;
-    foundBy: string;
-    details: string;
-  };
-  claimant: {
-    name: string;
-    studentId: string;
-    department: string;
-    proof: string;
-    contact: string;
-  };
+  item: { title: string; description: string; location: string; date: string; foundBy: string; details: string; };
+  claimant: { name: string; studentId: string; department: string; proof: string; contact: string; };
 };
 
 const claimsData: Claim[] = [
@@ -57,6 +46,7 @@ const claimsData: Claim[] = [
 ];
 
 const Claims = () => {
+  const { lang, isRTL } = useLanguage();
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [loading, setLoading] = useState<"approve" | "reject" | null>(null);
 
@@ -72,94 +62,86 @@ const Claims = () => {
     setTimeout(() => {
       setLoading(null);
       toast({
-        title: type === "approve" ? "✅ Claim Approved!" : "❌ Claim Rejected",
+        title: type === "approve" ? "✅ " + t("claimApproved", lang) : "❌ " + t("claimRejected", lang),
         description: type === "approve"
-          ? `Notification sent to ${selectedClaim.claimant.name}. Item ready for handover.`
-          : `${selectedClaim.claimant.name} will be notified of the rejection.`,
+          ? (lang === "AR" ? `تم إرسال إشعار إلى ${selectedClaim.claimant.name}. العنصر جاهز للتسليم.` : `Notification sent to ${selectedClaim.claimant.name}. Item ready for handover.`)
+          : (lang === "AR" ? `سيتم إخطار ${selectedClaim.claimant.name} بالرفض.` : `${selectedClaim.claimant.name} will be notified of the rejection.`),
       });
       setSelectedClaim(null);
     }, 1200);
   };
 
-  // Detail View
   if (selectedClaim) {
+    const BackArrow = isRTL ? ArrowRight : ArrowLeft;
     return (
-      <DashboardLayout title="Claims Verification" subtitle="Review and verify ownership claims">
-        {/* Back button */}
+      <DashboardLayout title={t("claimsSubtitle", lang)} subtitle={t("claimsSubtitle", lang)}>
         <button onClick={() => setSelectedClaim(null)} className="mb-4 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back to Claims List
+          <BackArrow className="h-4 w-4" /> {t("backToClaimsList", lang)}
         </button>
 
-        {/* Claim ID bar */}
         <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 shadow-card mb-4">
           <span className="text-sm font-medium text-card-foreground">{selectedClaim.id} – {selectedClaim.itemName}</span>
           <StatusBadge status={selectedClaim.status} />
         </div>
 
-        {/* Split View with Centered Score */}
         <div className="relative grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Centered Match Score */}
           <div className="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
             <div className={`flex h-28 w-28 flex-col items-center justify-center rounded-full border-4 shadow-lg bg-card ${getScoreColor(selectedClaim.matchScore)}`}>
               <span className="text-3xl font-bold">{selectedClaim.matchScore}%</span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider">Match</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider">{t("match", lang)}</span>
             </div>
           </div>
 
-          {/* Mobile Match Score */}
           <div className="flex lg:hidden justify-center">
             <div className={`flex h-24 w-24 flex-col items-center justify-center rounded-full border-4 ${getScoreColor(selectedClaim.matchScore)}`}>
               <span className="text-2xl font-bold">{selectedClaim.matchScore}%</span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider">Match</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider">{t("match", lang)}</span>
             </div>
           </div>
 
-          {/* Found Item Details */}
           <div className="rounded-xl border border-border bg-card p-6 shadow-card">
-            <h3 className="mb-4 text-sm font-bold text-primary">Found Item Details</h3>
+            <h3 className="mb-4 text-sm font-bold text-primary">{t("foundItemDetails", lang)}</h3>
             <div className="space-y-4">
               <div className="rounded-lg border border-border bg-muted/30 p-3">
-                <div className="flex h-36 items-center justify-center rounded-md bg-muted text-sm text-muted-foreground">📷 Item Photo</div>
+                <div className="flex h-36 items-center justify-center rounded-md bg-muted text-sm text-muted-foreground">📷 {t("itemPhoto", lang)}</div>
               </div>
-              <div><label className="text-xs font-medium text-muted-foreground">Item</label><p className="mt-0.5 text-sm font-semibold text-card-foreground">{selectedClaim.item.title}</p></div>
-              <div><label className="text-xs font-medium text-muted-foreground">Description</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.item.description}</p></div>
+              <div><label className="text-xs font-medium text-muted-foreground">{t("item", lang)}</label><p className="mt-0.5 text-sm font-semibold text-card-foreground">{selectedClaim.item.title}</p></div>
+              <div><label className="text-xs font-medium text-muted-foreground">{t("description", lang)}</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.item.description}</p></div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs font-medium text-muted-foreground">Location</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.item.location}</p></div>
-                <div><label className="text-xs font-medium text-muted-foreground">Date Found</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.item.date}</p></div>
+                <div><label className="text-xs font-medium text-muted-foreground">{t("thLocation", lang)}</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.item.location}</p></div>
+                <div><label className="text-xs font-medium text-muted-foreground">{t("dateFound", lang)}</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.item.date}</p></div>
               </div>
-              <div><label className="text-xs font-medium text-muted-foreground">Found By</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.item.foundBy}</p></div>
-              <div><label className="text-xs font-medium text-muted-foreground">Additional Details</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.item.details}</p></div>
+              <div><label className="text-xs font-medium text-muted-foreground">{t("foundBy", lang)}</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.item.foundBy}</p></div>
+              <div><label className="text-xs font-medium text-muted-foreground">{t("additionalDetails", lang)}</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.item.details}</p></div>
             </div>
           </div>
 
-          {/* Claimant Proof */}
           <div className="rounded-xl border border-border bg-card p-6 shadow-card">
-            <h3 className="mb-4 text-sm font-bold text-primary">Claimant Proof</h3>
+            <h3 className="mb-4 text-sm font-bold text-primary">{t("claimantProof", lang)}</h3>
             <div className="space-y-4">
               <div className="rounded-lg border border-border bg-muted/30 p-3">
-                <div className="flex h-36 items-center justify-center rounded-md bg-muted text-sm text-muted-foreground">📎 Supporting Documents</div>
+                <div className="flex h-36 items-center justify-center rounded-md bg-muted text-sm text-muted-foreground">📎 {t("supportingDocs", lang)}</div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs font-medium text-muted-foreground">Name</label><p className="mt-0.5 text-sm font-semibold text-card-foreground">{selectedClaim.claimant.name}</p></div>
-                <div><label className="text-xs font-medium text-muted-foreground">Student ID</label><p className="mt-0.5 text-sm font-mono text-card-foreground">{selectedClaim.claimant.studentId}</p></div>
+                <div><label className="text-xs font-medium text-muted-foreground">{t("name", lang)}</label><p className="mt-0.5 text-sm font-semibold text-card-foreground">{selectedClaim.claimant.name}</p></div>
+                <div><label className="text-xs font-medium text-muted-foreground">{t("studentId", lang)}</label><p className="mt-0.5 text-sm font-mono text-card-foreground">{selectedClaim.claimant.studentId}</p></div>
               </div>
-              <div><label className="text-xs font-medium text-muted-foreground">Department</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.claimant.department}</p></div>
-              <div><label className="text-xs font-medium text-muted-foreground">Contact</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.claimant.contact}</p></div>
-              <div><label className="text-xs font-medium text-muted-foreground">Proof of Ownership</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.claimant.proof}</p></div>
+              <div><label className="text-xs font-medium text-muted-foreground">{t("department", lang)}</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.claimant.department}</p></div>
+              <div><label className="text-xs font-medium text-muted-foreground">{t("contact", lang)}</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.claimant.contact}</p></div>
+              <div><label className="text-xs font-medium text-muted-foreground">{t("proofOfOwnership", lang)}</label><p className="mt-0.5 text-sm text-card-foreground">{selectedClaim.claimant.proof}</p></div>
             </div>
           </div>
         </div>
 
-        {/* Decision Bar */}
         {selectedClaim.status === "pending" && (
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4 rounded-xl border border-border bg-card p-5 shadow-card">
             <button onClick={() => handleDecision("approve")} disabled={loading !== null}
               className="flex items-center justify-center gap-2 rounded-lg bg-success px-8 py-3 text-sm font-bold text-success-foreground hover:bg-success/90 transition-all disabled:opacity-50 min-w-[200px]">
-              {loading === "approve" ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />} Approve Claim
+              {loading === "approve" ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />} {t("approveClaim", lang)}
             </button>
             <button onClick={() => handleDecision("reject")} disabled={loading !== null}
               className="flex items-center justify-center gap-2 rounded-lg border-2 border-destructive bg-card px-8 py-3 text-sm font-bold text-destructive hover:bg-destructive/5 transition-all disabled:opacity-50 min-w-[200px]">
-              {loading === "reject" ? <Loader2 className="h-5 w-5 animate-spin" /> : <XCircle className="h-5 w-5" />} Reject Claim
+              {loading === "reject" ? <Loader2 className="h-5 w-5 animate-spin" /> : <XCircle className="h-5 w-5" />} {t("rejectClaim", lang)}
             </button>
           </div>
         )}
@@ -167,21 +149,20 @@ const Claims = () => {
     );
   }
 
-  // Master List View
   return (
-    <DashboardLayout title="Claims Management" subtitle="Review and manage item ownership claims">
+    <DashboardLayout title={t("claimsManagement", lang)} subtitle={t("claimsManagementSubtitle", lang)}>
       <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Claim ID</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Item Name</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Claimant</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date Submitted</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Match Score</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Action</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thClaimId", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thItemName", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thClaimant", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thDateSubmitted", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thMatchScore", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thStatus", lang)}</th>
+                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thAction", lang)}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -200,7 +181,7 @@ const Claims = () => {
                   <td className="px-4 py-3">
                     <button onClick={() => setSelectedClaim(claim)}
                       className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-                      <Eye className="h-3.5 w-3.5" /> Review
+                      <Eye className="h-3.5 w-3.5" /> {t("reviewClaim", lang)}
                     </button>
                   </td>
                 </tr>
@@ -209,7 +190,7 @@ const Claims = () => {
           </table>
         </div>
         <div className="flex items-center justify-between border-t border-border px-4 py-3">
-          <p className="text-sm text-muted-foreground">Showing {claimsData.length} claims</p>
+          <p className="text-sm text-muted-foreground">{t("showing", lang)} {claimsData.length} {t("claims", lang).toLowerCase()}</p>
         </div>
       </div>
     </DashboardLayout>
