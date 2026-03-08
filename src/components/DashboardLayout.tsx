@@ -3,6 +3,7 @@ import { ProfileModal } from "@/components/ProfileModal";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { useTheme } from "@/hooks/use-theme";
 import { useLanguage } from "@/hooks/use-language";
+import { t } from "@/lib/i18n";
 import {
   Search,
   Sun,
@@ -72,7 +73,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
               <Search className="h-4 w-4 shrink-0" />
               <input
                 type="text"
-                placeholder={isRTL ? "ابحث في التقارير، المطالبات، المستخدمين..." : "Search reports, claims, users..."}
+                placeholder={t("searchPlaceholder", lang)}
                 className="w-full bg-transparent outline-none placeholder:text-muted-foreground/60 text-foreground"
               />
             </div>
@@ -120,9 +121,9 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                   AM
                 </div>
-                <div className="hidden md:block text-left">
-                  <p className="text-sm font-semibold text-foreground leading-tight">Admin Manager</p>
-                  <p className="text-[11px] text-muted-foreground leading-tight">Super Admin</p>
+                <div className="hidden md:block text-start">
+                  <p className="text-sm font-semibold text-foreground leading-tight">{t("adminManager", lang)}</p>
+                  <p className="text-[11px] text-muted-foreground leading-tight">{t("superAdmin", lang)}</p>
                 </div>
                 <ChevronDown className="h-4 w-4 text-muted-foreground hidden md:block" />
               </button>
@@ -134,14 +135,14 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-popover-foreground hover:bg-muted transition-colors"
                   >
                     <User className="h-4 w-4" />
-                    {isRTL ? "ملفي الشخصي" : "My Profile"}
+                    {t("myProfile", lang)}
                   </button>
                   <button
                     onClick={() => { navigate("/settings"); setDropdownOpen(false); }}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-popover-foreground hover:bg-muted transition-colors"
                   >
                     <Settings className="h-4 w-4" />
-                    {isRTL ? "الإعدادات" : "Settings"}
+                    {t("settings", lang)}
                   </button>
                   <div className="my-1 h-px bg-border" />
                   <button
@@ -149,7 +150,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
                   >
                     <LogOut className="h-4 w-4" />
-                    {isRTL ? "تسجيل الخروج" : "Logout"}
+                    {t("logout", lang)}
                   </button>
                 </div>
               )}

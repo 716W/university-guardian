@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
+import { t } from "@/lib/i18n";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -16,13 +18,14 @@ const Login = () => {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { lang, isRTL } = useLanguage();
 
   const validate = () => {
     const errs: typeof errors = {};
-    if (!email.trim()) errs.email = "Email is required";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "Enter a valid email address";
-    if (!password.trim()) errs.password = "Password is required";
-    else if (password.length < 6) errs.password = "Password must be at least 6 characters";
+    if (!email.trim()) errs.email = t("emailRequired", lang);
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = t("validEmail", lang);
+    if (!password.trim()) errs.password = t("passwordRequired", lang);
+    else if (password.length < 6) errs.password = t("passwordMinLength", lang);
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -33,13 +36,13 @@ const Login = () => {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      toast({ title: "Welcome back!", description: "Redirecting to dashboard..." });
+      toast({ title: t("welcomeBack", lang), description: t("redirecting", lang) });
       navigate("/");
     }, 1200);
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className={`min-h-screen flex ${isRTL ? "flex-row-reverse" : ""}`}>
       {/* Left Side – Visual */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-primary overflow-hidden items-center justify-center">
         <div className="absolute inset-0 opacity-[0.07]" style={{
@@ -50,10 +53,10 @@ const Login = () => {
           <div className="w-28 h-28 rounded-full bg-primary-foreground/15 backdrop-blur-sm border border-primary-foreground/20 flex items-center justify-center mb-8">
             <Shield className="w-14 h-14 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold text-primary-foreground mb-3 tracking-tight">Lost & Found System</h1>
-          <p className="text-primary-foreground/70 text-lg leading-relaxed">Hadramout University</p>
+          <h1 className="text-3xl font-bold text-primary-foreground mb-3 tracking-tight">{t("lostFoundSystem", lang)}</h1>
+          <p className="text-primary-foreground/70 text-lg leading-relaxed">{isRTL ? "جامعة حضرموت" : "Hadramout University"}</p>
           <div className="mt-10 w-16 h-px bg-primary-foreground/20" />
-          <p className="mt-6 text-primary-foreground/50 text-sm">Secure Admin Access</p>
+          <p className="mt-6 text-primary-foreground/50 text-sm">{t("secureAdminAccess", lang)}</p>
         </div>
         <div className="absolute -bottom-20 -left-20 w-64 h-64 rounded-full border border-primary-foreground/10" />
         <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full border border-primary-foreground/10" />
@@ -69,47 +72,47 @@ const Login = () => {
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                 <Shield className="w-8 h-8 text-primary" />
               </div>
-              <p className="text-sm text-muted-foreground">Hadramout University</p>
+              <p className="text-sm text-muted-foreground">{isRTL ? "جامعة حضرموت" : "Hadramout University"}</p>
             </div>
 
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-foreground tracking-tight">Admin Login</h2>
-              <p className="mt-2 text-muted-foreground text-sm">Please enter your credentials to continue</p>
+              <h2 className="text-2xl font-bold text-foreground tracking-tight">{t("adminLogin", lang)}</h2>
+              <p className="mt-2 text-muted-foreground text-sm">{t("loginSubtitle", lang)}</p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-5" noValidate>
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email">{t("emailAddress", lang)}</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Mail className={`absolute ${isRTL ? "right-3" : "left-3"} top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground`} />
                   <Input
                     id="email"
                     type="email"
                     placeholder="admin@example.com"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: undefined })); }}
-                    className={`pl-10 h-11 ${errors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                    className={`${isRTL ? "pr-10" : "pl-10"} h-11 ${errors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
                   />
                 </div>
                 {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t("password", lang)}</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Lock className={`absolute ${isRTL ? "right-3" : "left-3"} top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground`} />
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: undefined })); }}
-                    className={`pl-10 pr-10 h-11 ${errors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                    className={`${isRTL ? "pr-10 pl-10" : "pl-10 pr-10"} h-11 ${errors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className={`absolute ${isRTL ? "left-3" : "right-3"} top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors`}
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -121,19 +124,19 @@ const Login = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Checkbox id="remember" checked={rememberMe} onCheckedChange={(v) => setRememberMe(v === true)} />
-                  <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">Remember me</Label>
+                  <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">{t("rememberMe", lang)}</Label>
                 </div>
-                <button type="button" className="text-sm text-primary hover:underline font-medium">Forgot Password?</button>
+                <button type="button" className="text-sm text-primary hover:underline font-medium">{t("forgotPassword", lang)}</button>
               </div>
 
               <Button type="submit" className="w-full h-11 text-sm font-semibold" disabled={isLoading}>
                 {isLoading ? (
                   <span className="flex items-center gap-2">
                     <span className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                    Signing in…
+                    {t("signingIn", lang)}
                   </span>
                 ) : (
-                  "Sign In"
+                  t("signIn", lang)
                 )}
               </Button>
             </form>
@@ -141,7 +144,7 @@ const Login = () => {
         </div>
 
         <div className="p-6 text-center">
-          <p className="text-xs text-muted-foreground">© 2026 Hadramout University. All rights reserved.</p>
+          <p className="text-xs text-muted-foreground">{t("allRightsReserved", lang)}</p>
         </div>
       </div>
     </div>
