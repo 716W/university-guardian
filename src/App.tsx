@@ -38,6 +38,7 @@ const App = () => (
               <Route path="/master-data" element={<MasterData />} />
               <Route path="/audit-logs" element={<AuditLogs />} />
               <Route path="/feedback" element={<Feedback />} />
+              <Route path="/notifications" element={<Notifications />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
