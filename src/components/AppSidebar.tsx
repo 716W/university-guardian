@@ -1,4 +1,5 @@
 import { NavLink } from "@/components/NavLink";
+import { useLanguage } from "@/hooks/use-language";
 import {
   LayoutDashboard,
   FileText,
@@ -19,32 +20,32 @@ import { useNavigate } from "react-router-dom";
 
 const navGroups = [
   {
-    label: "MAIN",
+    label: { EN: "MAIN", AR: "الرئيسية" },
     items: [
-      { title: "Dashboard", url: "/", icon: LayoutDashboard },
+      { title: { EN: "Dashboard", AR: "لوحة التحكم" }, url: "/", icon: LayoutDashboard },
     ],
   },
   {
-    label: "OPERATIONS",
+    label: { EN: "OPERATIONS", AR: "العمليات" },
     items: [
-      { title: "Reports", url: "/reports", icon: FileText },
-      { title: "Claims", url: "/claims", icon: ShieldCheck },
-      { title: "Handover", url: "/handover", icon: Handshake },
+      { title: { EN: "Reports", AR: "البلاغات" }, url: "/reports", icon: FileText },
+      { title: { EN: "Claims", AR: "المطالبات" }, url: "/claims", icon: ShieldCheck },
+      { title: { EN: "Handover", AR: "التسليم" }, url: "/handover", icon: Handshake },
     ],
   },
   {
-    label: "SYSTEM",
+    label: { EN: "SYSTEM", AR: "النظام" },
     items: [
-      { title: "Users", url: "/users", icon: Users },
-      { title: "Master Data", url: "/master-data", icon: Database },
-      { title: "Audit Logs", url: "/audit-logs", icon: ScrollText },
+      { title: { EN: "Users", AR: "المستخدمين" }, url: "/users", icon: Users },
+      { title: { EN: "Master Data", AR: "البيانات الرئيسية" }, url: "/master-data", icon: Database },
+      { title: { EN: "Audit Logs", AR: "سجل العمليات" }, url: "/audit-logs", icon: ScrollText },
     ],
   },
   {
-    label: "SUPPORT",
+    label: { EN: "SUPPORT", AR: "الدعم" },
     items: [
-      { title: "Feedback", url: "/feedback", icon: MessageSquare },
-      { title: "Settings", url: "/settings", icon: Settings },
+      { title: { EN: "Feedback", AR: "الملاحظات" }, url: "/feedback", icon: MessageSquare },
+      { title: { EN: "Settings", AR: "الإعدادات" }, url: "/settings", icon: Settings },
     ],
   },
 ];
@@ -52,12 +53,13 @@ const navGroups = [
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
+  const { lang, isRTL } = useLanguage();
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 ${
-        collapsed ? "w-[72px]" : "w-[280px]"
-      } hidden md:flex`}
+      className={`fixed inset-y-0 ${isRTL ? "right-0" : "left-0"} z-40 flex flex-col bg-sidebar border-sidebar-border transition-all duration-300 ${
+        isRTL ? "border-l" : "border-r"
+      } ${collapsed ? "w-[72px]" : "w-[280px]"} hidden md:flex`}
     >
       {/* Header */}
       <div className={`flex items-center gap-3 px-4 h-16 border-b border-white/[0.06] ${collapsed ? "justify-center" : ""}`}>
@@ -67,10 +69,10 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="flex flex-col overflow-hidden">
             <span className="truncate text-sm font-bold text-white">
-              Hadramout Univ.
+              {isRTL ? "جامعة حضرموت" : "Hadramout Univ."}
             </span>
             <span className="truncate text-[11px] text-white/40">
-              Lost & Found
+              {isRTL ? "المفقودات والموجودات" : "Lost & Found"}
             </span>
           </div>
         )}
@@ -79,25 +81,25 @@ export function AppSidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto scrollbar-hide px-3 py-4 space-y-5">
         {navGroups.map((group) => (
-          <div key={group.label}>
+          <div key={group.label.EN}>
             {!collapsed && (
               <p className="mb-2 px-3 text-[10px] font-bold tracking-widest text-white/30 uppercase">
-                {group.label}
+                {group.label[lang]}
               </p>
             )}
             <ul className="space-y-0.5">
               {group.items.map((item) => (
-                <li key={item.title}>
+                <li key={item.url}>
                   <NavLink
                     to={item.url}
                     end={item.url === "/"}
                     className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/60 transition-all duration-200 hover:bg-white/[0.08] hover:text-white/90 ${
                       collapsed ? "justify-center" : ""
                     }`}
-                    activeClassName="!bg-primary/20 !text-white font-semibold border-l-2 !border-primary"
+                    activeClassName={`!bg-primary/20 !text-white font-semibold ${isRTL ? "border-r-2" : "border-l-2"} !border-primary`}
                   >
                     <item.icon className="h-[18px] w-[18px] shrink-0" />
-                    {!collapsed && <span>{item.title}</span>}
+                    {!collapsed && <span>{item.title[lang]}</span>}
                   </NavLink>
                 </li>
               ))}
@@ -113,11 +115,11 @@ export function AppSidebar() {
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/[0.04] px-3 py-2 text-xs font-medium text-white/40 transition-colors hover:bg-white/[0.08] hover:text-white/60"
         >
           {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
+            isRTL ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
           ) : (
             <>
-              <ChevronLeft className="h-4 w-4" />
-              <span>Collapse</span>
+              {isRTL ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              <span>{isRTL ? "طي" : "Collapse"}</span>
             </>
           )}
         </button>
@@ -135,8 +137,8 @@ export function AppSidebar() {
               AM
             </div>
             <div className="flex-1 min-w-0">
-              <p className="truncate text-sm font-semibold text-white">Admin Manager</p>
-              <p className="truncate text-[11px] text-white/40">Super Admin</p>
+              <p className="truncate text-sm font-semibold text-white">{isRTL ? "مدير النظام" : "Admin Manager"}</p>
+              <p className="truncate text-[11px] text-white/40">{isRTL ? "مشرف عام" : "Super Admin"}</p>
             </div>
             <button
               onClick={() => navigate("/login")}

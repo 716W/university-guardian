@@ -1,8 +1,9 @@
 import { AppSidebar } from "@/components/AppSidebar";
 import { ProfileModal } from "@/components/ProfileModal";
+import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { useTheme } from "@/hooks/use-theme";
+import { useLanguage } from "@/hooks/use-language";
 import {
-  Bell,
   Search,
   Sun,
   Moon,
@@ -23,6 +24,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children, title, subtitle }: DashboardLayoutProps) {
   const { theme, toggleTheme } = useTheme();
+  const { lang, setLang, isRTL } = useLanguage();
   const [profileOpen, setProfileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -43,8 +45,18 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
     <div className="flex min-h-screen w-full bg-background">
       <AppSidebar />
 
-      {/* Main content - offset for sidebar */}
-      <div className="flex flex-1 flex-col md:ml-[280px] transition-all duration-300">
+      {/* Mobile sidebar overlay */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
+          <div className={`absolute inset-y-0 ${isRTL ? "right-0" : "left-0"} w-[280px]`}>
+            <AppSidebar />
+          </div>
+        </div>
+      )}
+
+      {/* Main content */}
+      <div className={`flex flex-1 flex-col transition-all duration-300 ${isRTL ? "md:mr-[280px]" : "md:ml-[280px]"}`}>
         {/* Top bar */}
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-card/80 backdrop-blur-md px-4 md:px-6">
           <div className="flex items-center gap-4 flex-1">
@@ -60,13 +72,33 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
               <Search className="h-4 w-4 shrink-0" />
               <input
                 type="text"
-                placeholder="Search reports, claims, users..."
+                placeholder={isRTL ? "ابحث في التقارير، المطالبات، المستخدمين..." : "Search reports, claims, users..."}
                 className="w-full bg-transparent outline-none placeholder:text-muted-foreground/60 text-foreground"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Language Toggle */}
+            <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5 text-xs">
+              <button
+                onClick={() => setLang("EN")}
+                className={`px-2 py-1 rounded-sm font-medium transition-colors ${
+                  lang === "EN" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                EN
+              </button>
+              <button
+                onClick={() => setLang("AR")}
+                className={`px-2 py-1 rounded-sm font-medium transition-colors ${
+                  lang === "AR" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                AR
+              </button>
+            </div>
+
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
@@ -77,10 +109,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
             </button>
 
             {/* Notifications */}
-            <button className="relative rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-              <Bell className="h-5 w-5" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive ring-2 ring-card" />
-            </button>
+            <NotificationsDropdown />
 
             {/* Profile Dropdown */}
             <div className="relative" ref={dropdownRef}>
@@ -99,20 +128,20 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 top-full mt-2 w-52 rounded-xl border border-border bg-popover p-1.5 shadow-lg z-50 animate-fade-in">
+                <div className={`absolute ${isRTL ? "left-0" : "right-0"} top-full mt-2 w-52 rounded-xl border border-border bg-popover p-1.5 shadow-lg z-50 animate-fade-in`}>
                   <button
                     onClick={() => { setProfileOpen(true); setDropdownOpen(false); }}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-popover-foreground hover:bg-muted transition-colors"
                   >
                     <User className="h-4 w-4" />
-                    My Profile
+                    {isRTL ? "ملفي الشخصي" : "My Profile"}
                   </button>
                   <button
                     onClick={() => { navigate("/settings"); setDropdownOpen(false); }}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-popover-foreground hover:bg-muted transition-colors"
                   >
                     <Settings className="h-4 w-4" />
-                    Settings
+                    {isRTL ? "الإعدادات" : "Settings"}
                   </button>
                   <div className="my-1 h-px bg-border" />
                   <button
@@ -120,7 +149,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
                   >
                     <LogOut className="h-4 w-4" />
-                    Logout
+                    {isRTL ? "تسجيل الخروج" : "Logout"}
                   </button>
                 </div>
               )}
