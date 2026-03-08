@@ -15,6 +15,7 @@ import MasterData from "./pages/MasterData";
 import AuditLogs from "./pages/AuditLogs";
 import Feedback from "./pages/Feedback";
 import Settings from "./pages/Settings";
+import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/master-data" element={<MasterData />} />
               <Route path="/audit-logs" element={<AuditLogs />} />
               <Route path="/feedback" element={<Feedback />} />
+              <Route path="/notifications" element={<Notifications />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

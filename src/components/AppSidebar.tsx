@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Bell,
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -47,6 +48,7 @@ const navGroups: { labelKey: TranslationKey; items: { titleKey: TranslationKey; 
     labelKey: "navSupport",
     items: [
       { titleKey: "feedback", url: "/feedback", icon: MessageSquare },
+      { titleKey: "notifications", url: "/notifications", icon: Bell },
       { titleKey: "settings", url: "/settings", icon: Settings },
     ],
   },
