@@ -15,6 +15,7 @@ import MasterData from "./pages/MasterData";
 import AuditLogs from "./pages/AuditLogs";
 import Feedback from "./pages/Feedback";
 import Settings from "./pages/Settings";
+import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
