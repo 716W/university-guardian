@@ -80,7 +80,7 @@ export function NotificationsDropdown() {
         <button className="relative rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <span className="absolute end-1 top-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground animate-pulse">
+            <span className="absolute -end-0.5 -top-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1 text-[11px] font-bold leading-none text-destructive-foreground ring-2 ring-background animate-pulse">
               {unreadCount}
             </span>
           )}
