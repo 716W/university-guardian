@@ -7,6 +7,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { t } from "@/lib/i18n";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const reportImages: Record<string, string> = {
   Electronics: "📱",
@@ -101,6 +103,63 @@ const Reports = () => {
     setDeleteReport(null);
   };
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportPDF = () => {
+    setExporting(true);
+    try {
+      const rows = selectedRows.size > 0 ? filtered.filter(r => selectedRows.has(r.id)) : filtered;
+      const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      doc.setFillColor(124, 58, 237);
+      doc.rect(0, 0, pageWidth, 60, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("Hadramout University - Lost & Found", 40, 28);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.text("Reports Export", 40, 46);
+      doc.setFontSize(9);
+      const stamp = new Date().toLocaleString("en-GB");
+      doc.text(`Generated: ${stamp}`, pageWidth - 40, 46, { align: "right" });
+
+      autoTable(doc, {
+        startY: 80,
+        head: [["ID", "Item", "Category", "Location", "Reporter", "Date", "Status", "Match"]],
+        body: rows.map(r => [
+          r.id, r.title, r.category, r.location, r.reporter, r.date,
+          r.status.toUpperCase(), r.hasMatch ? "Yes" : "-",
+        ]),
+        styles: { fontSize: 9, cellPadding: 6, textColor: [40, 40, 40] },
+        headStyles: { fillColor: [124, 58, 237], textColor: 255, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [248, 247, 255] },
+        margin: { left: 40, right: 40 },
+        didDrawPage: (data) => {
+          const pageCount = doc.getNumberOfPages();
+          const pageHeight = doc.internal.pageSize.getHeight();
+          doc.setFontSize(8);
+          doc.setTextColor(120);
+          doc.text(
+            `Page ${data.pageNumber} of ${pageCount}  •  Total reports: ${rows.length}`,
+            pageWidth / 2, pageHeight - 20, { align: "center" }
+          );
+        },
+      });
+
+      doc.save(`reports-${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast({
+        title: "📄 " + (lang === "AR" ? "تم تصدير PDF" : "PDF Exported"),
+        description: lang === "AR" ? `تم تصدير ${rows.length} بلاغ بنجاح` : `${rows.length} reports exported successfully.`,
+      });
+    } catch (err) {
+      toast({ title: lang === "AR" ? "فشل التصدير" : "Export failed", variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <DashboardLayout title={t("reports", lang)} subtitle={t("reportsSubtitle", lang)}>
       {/* Filters Bar */}
@@ -127,8 +186,8 @@ const Reports = () => {
         <button onClick={() => setShowFilters(true)} className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted">
           <Filter className="h-4 w-4" /> {t("moreFilters", lang)}
         </button>
-        <button className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-          <Download className="h-4 w-4" /> {t("export", lang)}
+        <button onClick={handleExportPDF} disabled={exporting} className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
+          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} {t("export", lang)} PDF
         </button>
       </div>
 
