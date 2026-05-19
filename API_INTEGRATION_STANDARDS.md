@@ -20,14 +20,16 @@ This document sets forth the official methodologies, architectural standards, an
 Our application ecosystem utilizes a modern, typed, and performant stack:
 
 ### Frontend
-*   **Core:** React, TypeScript, Vite
-*   **Styling:** Tailwind CSS (via components and utility classes)
-*   **Networking / HTTP Client:** Axios
-*   **Server State / Data Fetching:** TanStack Query (React Query)
-*   **Client State Handling:** Zustand and React `useState` / `useReducer`
+
+* **Core:** React, TypeScript, Vite
+* **Styling:** Tailwind CSS (via components and utility classes)
+* **Networking / HTTP Client:** Axios
+* **Server State / Data Fetching:** TanStack Query (React Query)
+* **Client State Handling:** Zustand and React `useState` / `useReducer`
 
 ### Backend
-*   **Core:** .NET Web API (C#)
+
+* **Core:** .NET Web API (C#)
 
 ---
 
@@ -37,13 +39,13 @@ We strictly follow **Clean Architecture** principles on the frontend, enforcing 
 
 The frontend folder hierarchy for API interactions is structured as follows:
 
-*   **`src/lib/api/`**  
+* **`src/lib/api/`**  
     Contains the core Axios instance configuration, base URL setup, and interceptors (Request/Response).
-*   **`src/lib/api/endpoints/`**  
+* **`src/lib/api/endpoints/`**  
     Houses purely functional API calls organized by domain/feature (e.g., `users.ts`, `auth.ts`). These functions accept arguments and return typed Promises using the Axios instance object. They map 1:1 with .NET Controllers.
-*   **`src/hooks/queries/`**  
+* **`src/hooks/queries/`**  
     Contains custom custom React hooks using TanStack Query (`useQuery`, `useMutation`). These hooks import functions from `endpoints` to manage caching, refetching, and hydration.
-*   **`src/components/` & `src/pages/`**  
+* **`src/components/` & `src/pages/`**  
     Pure presentation and UI layers. They solely consume data and loading states provided by the `queries` hooks. **No Axios calls or raw `fetch` commands are permitted here.**
 
 ---
@@ -53,9 +55,11 @@ The frontend folder hierarchy for API interactions is structured as follows:
 To integrate a new endpoint from the .NET backend to the React frontend, developers must follow this strict 4-step workflow:
 
 ### Step 1: Define the TypeScript Interface / DTO
-The Frontend TypeScript Interface must mirror the Backend C# DTO exactly. 
+
+The Frontend TypeScript Interface must mirror the Backend C# DTO exactly.
 
 **Backend (C# .NET)**
+
 ```csharp
 public class UserDto
 {
@@ -68,6 +72,7 @@ public class UserDto
 
 **Frontend (TypeScript)**
 Create the type in a shared interfaces file (e.g., `src/types/user.ts`):
+
 ```typescript
 export interface User {
   id: string; // Guid maps to string in TS
@@ -78,6 +83,7 @@ export interface User {
 ```
 
 ### Step 2: Create the API call function in `endpoints`
+
 Create a pure function mapping to the controller in `src/lib/api/endpoints/users.ts`.
 
 ```typescript
@@ -91,6 +97,7 @@ export const fetchUsers = async (): Promise<User[]> => {
 ```
 
 ### Step 3: Create the React Query Hook
+
 Wrap the endpoint function with TanStack Query in `src/hooks/queries/useUsers.ts`.
 
 ```typescript
@@ -107,6 +114,7 @@ export const useGetUsers = () => {
 ```
 
 ### Step 4: Consume the Hook inside the React Component
+
 Finally, import the hook in your UI component (`src/pages/Users.tsx`).
 
 ```tsx
@@ -135,20 +143,21 @@ export default function Users() {
 
 We maintain a strict boundary between UI/Client State and Server State to prevent bloated contexts and outdated data.
 
-*   **Server State (Dynamic backend data):** Strictly managed by **TanStack Query**. It provides built-in caching, background fetching, and deduplication.
-*   **Client State (Local UI toggles, temporary forms, themes):** Managed by **React `useState` / `useReducer`** for component-level scope, or **Zustand** for global scope.
+* **Server State (Dynamic backend data):** Strictly managed by **TanStack Query**. It provides built-in caching, background fetching, and deduplication.
+* **Client State (Local UI toggles, temporary forms, themes):** Managed by **React `useState` / `useReducer`** for component-level scope, or **Zustand** for global scope.
 
 ---
 
 ## 6. Error Handling & Authentication
 
-All API calls must funnel through our central Axios instance. We utilize Axios interceptors to globally handle the authentication token and standard HTTP errors. 
+All API calls must funnel through our central Axios instance. We utilize Axios interceptors to globally handle the authentication token and standard HTTP errors.
 
 **Authentication Pipeline Requirements:**
-1.  **Request Interceptor:** Automatically injects the JWT Bearer token from local storage/cookies into the `Authorization` header on every request.
-2.  **Response Interceptor:** Detects global API failures.
-    *   **401 Unauthorized:** Triggers a global logout / redirect to the Login page. (Alternatively, implements token refresh logic).
-    *   **403 Forbidden:** Redirects to an "Access Denied" view or displays a global Toast notification.
+
+1. **Request Interceptor:** Automatically injects the JWT Bearer token from local storage/cookies into the `Authorization` header on every request.
+2. **Response Interceptor:** Detects global API failures.
+    * **401 Unauthorized:** Triggers a global logout / redirect to the Login page. (Alternatively, implements token refresh logic).
+    * **403 Forbidden:** Redirects to an "Access Denied" view or displays a global Toast notification.
 
 ```typescript
 // Example Implementation in src/lib/api/apiClient.ts
@@ -173,18 +182,20 @@ apiClient.interceptors.response.use(
 Consistency across codebases speeds up development and debugging.
 
 ### API Functions (`src/lib/api/endpoints/`)
-*   `fetch[Entity]` - For GET requests (e.g., `fetchUsers`, `fetchUserProfile`)
-*   `create[Entity]` - For POST requests (e.g., `createUser`)
-*   `update[Entity]` - For PUT/PATCH requests (e.g., `updateUser`)
-*   `delete[Entity]` - For DELETE requests (e.g., `deleteUser`)
+
+* `fetch[Entity]` - For GET requests (e.g., `fetchUsers`, `fetchUserProfile`)
+* `create[Entity]` - For POST requests (e.g., `createUser`)
+* `update[Entity]` - For PUT/PATCH requests (e.g., `updateUser`)
+* `delete[Entity]` - For DELETE requests (e.g., `deleteUser`)
 
 ### TanStack Query Hooks (`src/hooks/queries/`)
-*   `useGet[Entity]` - Wrapper for `useQuery` (e.g., `useGetUsers`)
-*   `useCreate[Entity]` - Wrapper for `useMutation` (e.g., `useCreateUser`)
-*   `useUpdate[Entity]` - Wrapper for `useMutation` (e.g., `useUpdateUser`)
-*   `useDelete[Entity]` - Wrapper for `useMutation` (e.g., `useDeleteUser`)
+
+* `useGet[Entity]` - Wrapper for `useQuery` (e.g., `useGetUsers`)
+* `useCreate[Entity]` - Wrapper for `useMutation` (e.g., `useCreateUser`)
+* `useUpdate[Entity]` - Wrapper for `useMutation` (e.g., `useUpdateUser`)
+* `useDelete[Entity]` - Wrapper for `useMutation` (e.g., `useDeleteUser`)
 
 Adhering to these conventions will ensure the codebase remains readable, intuitive, and seamlessly integrated with our C# API.
 
---- 
+---
 *End of Document*
