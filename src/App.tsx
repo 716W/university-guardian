@@ -17,6 +17,7 @@ import Feedback from "./pages/Feedback";
 import Settings from "./pages/Settings";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -29,17 +30,24 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
+              {/* Public Routes */}
               <Route path="/login" element={<Login />} />
-              <Route path="/" element={<Index />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/claims" element={<Claims />} />
-              <Route path="/handover" element={<Handover />} />
-              <Route path="/users" element={<UsersPage />} />
-              <Route path="/master-data" element={<MasterData />} />
-              <Route path="/audit-logs" element={<AuditLogs />} />
-              <Route path="/feedback" element={<Feedback />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="/settings" element={<Settings />} />
+
+              {/* Protected Routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/" element={<Index />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/claims" element={<Claims />} />
+                <Route path="/handover" element={<Handover />} />
+                <Route path="/users" element={<UsersPage />} />
+                <Route path="/master-data" element={<MasterData />} />
+                <Route path="/audit-logs" element={<AuditLogs />} />
+                <Route path="/feedback" element={<Feedback />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/settings" element={<Settings />} />
+              </Route>
+
+              {/* Catch all */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
