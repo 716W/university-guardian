@@ -8,17 +8,23 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { t } from "@/lib/i18n";
+import { useLogin } from "@/hooks/queries/useAuth";
+import { useAuthStore } from "@/store/useAuthStore";
+import { extractRolesFromToken } from "@/lib/authUtils";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string, global?: string }>({});
+
   const navigate = useNavigate();
   const { toast } = useToast();
   const { lang, isRTL } = useLanguage();
+
+  const loginMutation = useLogin();
+  const setTokens = useAuthStore((state) => state.setTokens);
 
   const validate = () => {
     const errs: typeof errors = {};
@@ -33,12 +39,29 @@ const Login = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      toast({ title: t("welcomeBack", lang), description: t("redirecting", lang) });
-      navigate("/");
-    }, 1200);
+
+    loginMutation.mutate(
+      { email, password },
+      {
+        onSuccess: (data) => {
+          setTokens(data.token, data.refreshToken);
+
+          // Extract ALL roles properly handling .NET token formatting
+          const roles = extractRolesFromToken(data.token);
+
+          if (roles.includes("Admin") || roles.includes("Super Admin") || roles.includes("SuperAdmin")) {
+            toast({ title: t("welcomeBack", lang), description: t("redirecting", lang) });
+            navigate("/");
+          } else {
+            useAuthStore.getState().logout();
+            setErrors({ global: "Access Denied: You must be an Admin or Super Admin." });
+          }
+        },
+        onError: (error) => {
+          setErrors({ global: error.message || "Invalid credentials." });
+        },
+      }
+    );
   };
 
   return (
@@ -78,6 +101,11 @@ const Login = () => {
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-foreground tracking-tight">{t("adminLogin", lang)}</h2>
               <p className="mt-2 text-muted-foreground text-sm">{t("loginSubtitle", lang)}</p>
+              {errors.global && (
+                <div className="mt-4 p-3 rounded bg-destructive/10 text-destructive text-sm border border-destructive/20">
+                  {errors.global}
+                </div>
+              )}
             </div>
 
             <form onSubmit={handleLogin} className="space-y-5" noValidate>
@@ -129,8 +157,8 @@ const Login = () => {
                 <button type="button" className="text-sm text-primary hover:underline font-medium">{t("forgotPassword", lang)}</button>
               </div>
 
-              <Button type="submit" className="w-full h-11 text-sm font-semibold" disabled={isLoading}>
-                {isLoading ? (
+              <Button type="submit" className="w-full h-11 text-sm font-semibold" disabled={loginMutation.isPending}>
+                {loginMutation.isPending ? (
                   <span className="flex items-center gap-2">
                     <span className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                     {t("signingIn", lang)}
