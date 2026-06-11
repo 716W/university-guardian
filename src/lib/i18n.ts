@@ -22,6 +22,9 @@ const translations = {
   reply: { EN: "Reply", AR: "رد" },
   replied: { EN: "Replied", AR: "تم الرد" },
   awaitingReply: { EN: "Awaiting Reply", AR: "بانتظار الرد" },
+  replyTo: { EN: "Reply to", AR: "الرد على" },
+  typeResponse: { EN: "Type your response here...", AR: "اكتب ردك هنا..." },
+  sendReply: { EN: "Send Reply", AR: "إرسال الرد" },
 
   // Navigation
   dashboard: { EN: "Dashboard", AR: "لوحة التحكم" },

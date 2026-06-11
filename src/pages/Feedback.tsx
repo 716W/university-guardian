@@ -1,9 +1,31 @@
+import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Star, MessageSquare, Reply } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { t } from "@/lib/i18n";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
-const feedbacks = [
+interface FeedbackItem {
+  id: number;
+  from: string;
+  email: string;
+  subject: string;
+  message: string;
+  rating: number;
+  date: string;
+  replied: boolean;
+}
+
+const feedbacks: FeedbackItem[] = [
   { id: 1, from: "Ahmed Ali", email: "ahmed.ali@hu.edu.ye", subject: "Great service – got my phone back!", message: "I lost my Samsung phone near the Engineering Faculty and got it back within 2 days. The system is very helpful. Thank you to the team!", rating: 5, date: "2026-02-08", replied: true },
   { id: 2, from: "Fatima Saleh", email: "fatima.s@hu.edu.ye", subject: "Suggestion: Add notification feature", message: "It would be great if the system could send SMS or email notifications when a matching item is found. Currently I have to keep checking the website.", rating: 4, date: "2026-02-07", replied: false },
   { id: 3, from: "Khalid Nasser", email: "khalid.n@hu.edu.ye", subject: "Claim process too slow", message: "I submitted a claim for my wallet 5 days ago and it's still pending. The verification process should be faster. I need my national ID urgently.", rating: 2, date: "2026-02-06", replied: true },
@@ -13,6 +35,27 @@ const feedbacks = [
 
 const Feedback = () => {
   const { lang } = useLanguage();
+  const [isReplyModalOpen, setIsReplyModalOpen] = useState(false);
+  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
+  const [replyText, setReplyText] = useState("");
+
+  const handleOpenReply = (item: FeedbackItem) => {
+    setSelectedFeedback(item);
+    setReplyText("");
+    setIsReplyModalOpen(true);
+  };
+
+  const handleCloseReply = () => {
+    setIsReplyModalOpen(false);
+    setSelectedFeedback(null);
+    setReplyText("");
+  };
+
+  const handleSendReply = () => {
+    if (!selectedFeedback) return;
+    console.log({ feedbackId: selectedFeedback.id, reply: replyText });
+    handleCloseReply();
+  };
 
   return (
     <DashboardLayout title={t("feedback", lang)} subtitle={t("feedbackSubtitle", lang)}>
@@ -52,14 +95,43 @@ const Feedback = () => {
                 )}
               </div>
               {!fb.replied && (
-                <button className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">
+                <Button size="sm" onClick={() => handleOpenReply(fb)}>
                   {t("reply", lang)}
-                </button>
+                </Button>
               )}
             </div>
           </div>
         ))}
       </div>
+
+      <Dialog open={isReplyModalOpen} onOpenChange={handleCloseReply}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("replyTo", lang)} {selectedFeedback?.from}</DialogTitle>
+            <DialogDescription>{selectedFeedback?.email}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="rounded-md border border-border bg-muted/40 p-3">
+              <p className="text-sm font-semibold text-card-foreground">{selectedFeedback?.subject}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{selectedFeedback?.message}</p>
+            </div>
+            <Textarea
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              placeholder={t("typeResponse", lang)}
+              rows={5}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={handleCloseReply}>
+              {t("cancel", lang)}
+            </Button>
+            <Button onClick={handleSendReply} disabled={!replyText.trim()}>
+              {t("sendReply", lang)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
