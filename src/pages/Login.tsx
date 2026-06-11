@@ -167,6 +167,31 @@ const Login = () => {
                   t("signIn", lang)
                 )}
               </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-11 text-sm font-medium"
+                onClick={() => {
+                  // Demo bypass: build a mock JWT with Super Admin role so the
+                  // dashboard is reachable without the backend at localhost:8080.
+                  const header = btoa(JSON.stringify({ alg: "none", typ: "JWT" }));
+                  const payload = btoa(
+                    JSON.stringify({
+                      sub: "demo-admin",
+                      name: "Demo Admin",
+                      "http://schemas.microsoft.com/ws/2008/06/identity/claims/role": "Super Admin",
+                      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 8,
+                    })
+                  );
+                  const demoToken = `${header}.${payload}.demo`;
+                  setTokens(demoToken);
+                  toast({ title: t("welcomeBack", lang), description: t("redirecting", lang) });
+                  navigate("/");
+                }}
+              >
+                {isRTL ? "الدخول كمسؤول تجريبي (بدون خادم)" : "Continue as Demo Admin (no backend)"}
+              </Button>
             </form>
           </div>
         </div>
