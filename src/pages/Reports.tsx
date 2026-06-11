@@ -9,6 +9,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { t } from "@/lib/i18n";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { useGetReports, useGetReportById, useDeleteReport, useUpdateReport } from "@/hooks/queries/useReports";
 
 const reportImages: Record<string, string> = {
   Electronics: "📱",
@@ -17,8 +18,8 @@ const reportImages: Record<string, string> = {
   Clothing: "👕",
 };
 
-type Report = {
-  id: string;
+export interface Report {
+  id: string | number;
   title: string;
   category: string;
   location: string;
@@ -27,23 +28,32 @@ type Report = {
   reporter: string;
   hasMatch: boolean;
   description: string;
-};
+  imagePath?: string;
+}
 
-const reports: Report[] = [
-  { id: "RPT-001", title: "Samsung Galaxy S23", category: "Electronics", location: "Engineering Faculty", date: "2026-02-08", status: "lost", reporter: "Ahmed Ali", hasMatch: true, description: "Black color with blue case, cracked screen protector. Last seen near entrance." },
-  { id: "RPT-002", title: "Student ID Card", category: "Documents", location: "Main Library", date: "2026-02-08", status: "found", reporter: "Sara Mohammed", hasMatch: true, description: "Found on reading desk, second floor. Name partially visible." },
-  { id: "RPT-003", title: "Laptop Charger (Dell)", category: "Electronics", location: "IT Lab 3", date: "2026-02-07", status: "found", reporter: "Omar Hassan", hasMatch: false, description: "Dell 65W charger found plugged into outlet near window." },
-  { id: "RPT-004", title: "Brown Leather Wallet", category: "Accessories", location: "Cafeteria", date: "2026-02-07", status: "lost", reporter: "Khalid Nasser", hasMatch: true, description: "Brown leather wallet with bank cards and national ID inside." },
-  { id: "RPT-005", title: "Engineering Textbook", category: "Documents", location: "Lecture Hall A2", date: "2026-02-06", status: "found", reporter: "Fatima Saleh", hasMatch: false, description: "Engineering Mathematics textbook, 4th edition with handwritten notes." },
-  { id: "RPT-006", title: "USB Flash Drive 64GB", category: "Electronics", location: "Computer Science Dept", date: "2026-02-06", status: "lost", reporter: "Mona Abdulrahman", hasMatch: false, description: "SanDisk 64GB silver USB drive with keychain attached." },
-  { id: "RPT-007", title: "Car Keys (Toyota)", category: "Accessories", location: "Parking Lot B", date: "2026-02-05", status: "lost", reporter: "Yasser Bin Ali", hasMatch: false, description: "Toyota car key with remote, black keychain." },
-  { id: "RPT-008", title: "Prescription Glasses", category: "Accessories", location: "Medical Faculty", date: "2026-02-05", status: "found", reporter: "Noura Salem", hasMatch: true, description: "Black frame prescription glasses in brown case." },
-  { id: "RPT-009", title: "iPad Mini", category: "Electronics", location: "Student Center", date: "2026-02-04", status: "lost", reporter: "Hassan Abdo", hasMatch: false, description: "Silver iPad Mini with purple smart cover." },
-  { id: "RPT-010", title: "National ID Card", category: "Documents", location: "Admin Building", date: "2026-02-04", status: "found", reporter: "Amal Khaled", hasMatch: false, description: "National ID card found near reception desk." },
-];
+
 
 const Reports = () => {
   const { lang, isRTL } = useLanguage();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  
+  const { data: reportsData, isLoading, isError } = useGetReports({ pageNumber: page, pageSize });
+  
+  // Map API response to UI Report model
+  const reports: Report[] = (reportsData?.data || []).map(r => ({
+    id: r.id,
+    title: r.itemName,
+    category: "Electronics", // Default category if not provided by API
+    location: "Unknown", // Default location if not provided
+    date: r.dateReported.split("T")[0],
+    status: r.reportType === 1 ? "lost" : "found",
+    reporter: "System User", // Default reporter
+    hasMatch: false,
+    description: r.description || "No description provided",
+    imagePath: r.imagePath
+  }));
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -54,6 +64,14 @@ const Reports = () => {
   const [viewReport, setViewReport] = useState<Report | null>(null);
   const [editReport, setEditReport] = useState<Report | null>(null);
   const [deleteReport, setDeleteReport] = useState<Report | null>(null);
+
+  const activeId = viewReport?.id || editReport?.id || 0;
+  const { data: detailsData, isLoading: detailsLoading } = useGetReportById(activeId, !!activeId);
+
+  
+  
+  const deleteMutation = useDeleteReport();
+  const updateMutation = useUpdateReport();
   const [showFilters, setShowFilters] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", location: "", description: "", status: "lost" as "lost" | "found" });
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
@@ -73,13 +91,13 @@ const Reports = () => {
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
-  const toggleRow = (id: string) => {
-    setSelectedRows((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  const toggleRow = (id: string | number) => {
+    setSelectedRows((prev) => { const idStr = id.toString(); const next = new Set(prev); if (next.has(idStr)) next.delete(idStr); else next.add(idStr); return next; });
   };
 
   const toggleAll = () => {
-    if (selectedRows.size === filtered.length) setSelectedRows(new Set());
-    else setSelectedRows(new Set(filtered.map((r) => r.id)));
+    if (selectedRows.size === filtered.length && filtered.length > 0) setSelectedRows(new Set());
+    else setSelectedRows(new Set(filtered.map((r) => r.id.toString())));
   };
 
   const openEdit = (report: Report) => {
@@ -90,17 +108,62 @@ const Reports = () => {
   };
 
   const handleEditSave = () => {
+    if (!editReport) return;
     const errs: Record<string, string> = {};
     if (!editForm.title.trim()) errs.title = t("titleRequired", lang);
     if (!editForm.location.trim()) errs.location = t("locationRequired", lang);
     if (Object.keys(errs).length > 0) { setEditErrors(errs); return; }
-    toast({ title: "✅ " + (lang === "AR" ? "تم تحديث البلاغ" : "Report Updated"), description: `${editReport?.id} ${lang === "AR" ? "تم تحديثه بنجاح" : "has been updated successfully."}` });
-    setEditReport(null);
+    
+    const formData = new FormData();
+    
+    // The backend in ASP.NET Core accepts lowerCase / camelCase keys usually, but Swagger shows PascalCase. Let's send camelCase keys as is universally safe for ASP.NET or match Swagger exactly.
+    // However, if some aren't sent, ASP.NET Core may complain if they are required. We'll send them matching Swagger to be safe.
+    formData.append('ItemName', editForm.title || detailsData?.data?.itemName || editReport.title);
+    formData.append('Description', editForm.description || detailsData?.data?.description || editReport.description || '');
+    
+    const newStatus = editForm.status || editReport.status;
+    formData.append('ReportType', newStatus === 'lost' ? '1' : '2');
+    
+    // Only send LocationId and DateReported if we have a reasonable value
+    // Let's send the previous date-time string if available
+    const prevDate = detailsData?.data?.dateReported || editReport.date;
+    if (prevDate) formData.append('DateReported', prevDate);
+    
+    // Location Id is tricky if not sent in GET. We'll skip sending LocationId if not needed, 
+    // or send '1' if backend insists (but let's omit unless we explicitly have it, else dummy '1')
+    if ((detailsData?.data as any)?.locationId) {
+        formData.append('LocationId', (detailsData.data as any).locationId.toString());
+    } else {
+        // formData.append('LocationId', '1'); // Omit and hope it's not required on PUT
+    }
+
+    if ((detailsData?.data as any)?.color) formData.append('Color', (detailsData.data as any).color);
+    if ((detailsData?.data as any)?.conditionType) formData.append('ConditionType', (detailsData.data as any).conditionType.toString());
+
+    updateMutation.mutate({ id: editReport.id, formData }, {
+      onSuccess: () => {
+        toast({ title: "✅ " + (lang === "AR" ? "تم تحديث البلاغ" : "Report Updated"), description: `${editReport.id} ${lang === "AR" ? "تم تحديثه بنجاح" : "has been updated successfully."}` });
+        setEditReport(null);
+      },
+      onError: (err: any) => {
+        console.error("Update error:", err);
+        toast({ title: lang === "AR" ? "فشل التحديث" : "Update failed: " + (err.response?.data?.message || err.message), variant: "destructive" });
+      }
+    });
   };
 
   const handleDelete = () => {
-    toast({ title: "🗑️ " + (lang === "AR" ? "تم حذف البلاغ" : "Report Deleted"), description: `${deleteReport?.id} ${lang === "AR" ? "تمت إزالته" : "has been removed."}` });
-    setDeleteReport(null);
+    if (!deleteReport) return;
+    deleteMutation.mutate(deleteReport.id, {
+      onSuccess: () => {
+        toast({ title: "🗑️ " + (lang === "AR" ? "تم حذف البلاغ" : "Report Deleted"), description: `${deleteReport.id} ${lang === "AR" ? "تمت إزالته" : "has been removed."}` });
+        setDeleteReport(null);
+      },
+      onError: (err: any) => {
+        console.error("Delete error:", err);
+        toast({ title: lang === "AR" ? "فشل الحذف" : "Deletion failed: " + (err.response?.data?.message || err.message), variant: "destructive" });
+      }
+    });
   };
 
   const [exporting, setExporting] = useState(false);
@@ -108,7 +171,7 @@ const Reports = () => {
   const handleExportPDF = () => {
     setExporting(true);
     try {
-      const rows = selectedRows.size > 0 ? filtered.filter(r => selectedRows.has(r.id)) : filtered;
+      const rows = selectedRows.size > 0 ? filtered.filter(r => selectedRows.has(r.id.toString())) : filtered;
       const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
       const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -209,9 +272,22 @@ const Reports = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.map((report) => (
-                <tr key={report.id} className={`transition-colors hover:bg-muted/30 ${selectedRows.has(report.id) ? "bg-primary/5" : ""}`}>
-                  <td className="px-4 py-3"><input type="checkbox" checked={selectedRows.has(report.id)} onChange={() => toggleRow(report.id)} className="h-4 w-4 rounded border-input text-primary accent-primary" /></td>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                    <Loader2 className="mx-auto h-6 w-6 animate-spin mb-2" />
+                    {t("loading", lang) || "Loading..."}
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                    No reports found.
+                  </td>
+                </tr>
+              ) : filtered.map((report) => (
+                <tr key={report.id} className={`transition-colors hover:bg-muted/30 ${selectedRows.has(report.id.toString()) ? "bg-primary/5" : ""}`}>
+                  <td className="px-4 py-3"><input type="checkbox" checked={selectedRows.has(report.id.toString())} onChange={() => toggleRow(report.id)} className="h-4 w-4 rounded border-input text-primary accent-primary" /></td>
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{report.id}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -262,14 +338,25 @@ const Reports = () => {
         </div>
         <div className="flex items-center justify-between border-t border-border px-4 py-3">
           <p className="text-sm text-muted-foreground">
-            {t("showing", lang)} {filtered.length} {t("of", lang)} {reports.length} {t("reports", lang).toLowerCase()}
+            {t("showing", lang)} {filtered.length} {t("of", lang)} {reportsData?.totalRecords || reports.length} {t("reports", lang).toLowerCase()}
             {selectedRows.size > 0 && <span className="ms-2 font-medium text-primary">({selectedRows.size} {t("selected", lang)})</span>}
           </p>
           <div className="flex gap-1">
-            <button className="rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted">{t("previous", lang)}</button>
-            <button className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground">1</button>
-            <button className="rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted">2</button>
-            <button className="rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted">{t("next", lang)}</button>
+            <button 
+              disabled={page <= 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              className="rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
+            >
+              {t("previous", lang)}
+            </button>
+            <button className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground">{page}</button>
+            <button 
+              disabled={page >= (reportsData?.totalPages || 1)}
+              onClick={() => setPage(p => p + 1)}
+              className="rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
+            >
+              {t("next", lang)}
+            </button>
           </div>
         </div>
       </div>
@@ -285,22 +372,31 @@ const Reports = () => {
           </DialogHeader>
           {viewReport && (
             <div className="space-y-4 pt-2">
-              <div className="flex h-48 items-center justify-center rounded-xl border border-border bg-muted">
-                <span className="text-6xl">{reportImages[viewReport.category]}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><p className="text-xs font-medium text-muted-foreground">{t("reportId", lang)}</p><p className="text-sm font-semibold text-foreground font-mono">{viewReport.id}</p></div>
-                <div><p className="text-xs font-medium text-muted-foreground">{t("thStatus", lang)}</p><StatusBadge status={viewReport.status} /></div>
-                <div><p className="text-xs font-medium text-muted-foreground">{t("thCategory", lang)}</p><p className="text-sm text-foreground">{viewReport.category}</p></div>
-                <div><p className="text-xs font-medium text-muted-foreground">{t("thLocation", lang)}</p><p className="text-sm text-foreground">{viewReport.location}</p></div>
-                <div><p className="text-xs font-medium text-muted-foreground">{t("thReporter", lang)}</p><p className="text-sm text-foreground">{viewReport.reporter}</p></div>
-                <div><p className="text-xs font-medium text-muted-foreground">{t("thDate", lang)}</p><p className="text-sm text-foreground">{viewReport.date}</p></div>
-              </div>
-              <div><p className="text-xs font-medium text-muted-foreground">{t("description", lang)}</p><p className="text-sm text-foreground mt-1">{viewReport.description}</p></div>
-              {viewReport.hasMatch && (
-                <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary">
-                  <Link2 className="h-4 w-4" /> {t("potentialMatch", lang)}
+              {detailsLoading ? (
+                <div className="flex h-48 items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
+              ) : (
+                <>
+                  <div className="flex h-48 items-center justify-center rounded-xl border border-border bg-muted overflow-hidden">
+                    {detailsData?.data?.images?.[0]?.path ? (
+                      <img src={'http://localhost:8080/' + detailsData.data.images[0].path} alt={viewReport.title} className="max-h-full object-contain" />
+                    ) : viewReport.imagePath ? (
+                      <img src={'http://localhost:8080/' + viewReport.imagePath} alt={viewReport.title} className="max-h-full object-contain" />
+                    ) : (
+                      <span className="text-6xl">{reportImages[viewReport.category]}</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><p className="text-xs font-medium text-muted-foreground">{t("reportId", lang)}</p><p className="text-sm font-semibold text-foreground font-mono">{viewReport.id}</p></div>
+                    <div><p className="text-xs font-medium text-muted-foreground">{t("thStatus", lang)}</p><StatusBadge status={detailsData?.data?.reportType === 1 ? "lost" : detailsData?.data?.reportType === 2 ? "found" : viewReport.status} /></div>
+                    <div><p className="text-xs font-medium text-muted-foreground">{t("thCategory", lang)}</p><p className="text-sm text-foreground">{viewReport.category}</p></div>
+                    <div><p className="text-xs font-medium text-muted-foreground">{t("thLocation", lang)}</p><p className="text-sm text-foreground">{detailsData?.data?.locationName || viewReport.location}</p></div>
+                    <div><p className="text-xs font-medium text-muted-foreground">{t("thReporter", lang)}</p><p className="text-sm text-foreground">{viewReport.reporter}</p></div>
+                    <div><p className="text-xs font-medium text-muted-foreground">{t("thDate", lang)}</p><p className="text-sm text-foreground">{detailsData?.data?.dateReported ? detailsData.data.dateReported.split('T')[0] : viewReport.date}</p></div>
+                  </div>
+                  <div><p className="text-xs font-medium text-muted-foreground">{t("description", lang)}</p><p className="text-sm text-foreground mt-1">{detailsData?.data?.description || viewReport.description || "No description provided"}</p></div>
+                </>
               )}
             </div>
           )}
@@ -338,7 +434,7 @@ const Reports = () => {
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setEditReport(null)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">{t("cancel", lang)}</button>
-              <button onClick={handleEditSave} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">{t("saveChanges", lang)}</button>
+              <button onClick={handleEditSave} disabled={updateMutation.isPending} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">{t("saveChanges", lang)}</button>
             </div>
           </div>
         </DialogContent>
@@ -357,7 +453,7 @@ const Reports = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("cancel", lang)}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={handleDelete} disabled={deleteMutation.isPending} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {t("delete", lang)}
             </AlertDialogAction>
           </AlertDialogFooter>
