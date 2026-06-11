@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
+import { useGetNotifications, useMarkNotificationAsRead, useDeleteNotification } from "@/hooks/queries/useNotifications";
 
 type NotifType = "claims" | "system";
 
@@ -31,26 +32,30 @@ interface Notification {
 const Notifications = () => {
   const { lang, isRTL } = useLanguage();
 
-  const initialNotifications: Notification[] = [
-    { id: 1, icon: ShieldCheck, title: lang === "AR" ? "تم تقديم مطالبة جديدة" : "New Claim Submitted", desc: lang === "AR" ? "أحمد علي قدم مطالبة لـ Samsung Galaxy S23" : "Ahmed Ali submitted a claim for Samsung Galaxy S23", time: lang === "AR" ? "منذ 2 دقيقة" : "2m ago", date: "2026-03-08", unread: true, type: "claims" },
-    { id: 2, icon: Search, title: lang === "AR" ? "تم تطابق بلاغ" : "Report Matched", desc: lang === "AR" ? "RPT-004 لديه تطابق محتمل مع CLM-002" : "RPT-004 has a potential match with CLM-002", time: lang === "AR" ? "منذ 32 دقيقة" : "32m ago", date: "2026-03-08", unread: true, type: "claims" },
-    { id: 3, icon: Handshake, title: lang === "AR" ? "اكتمل التسليم" : "Handover Completed", desc: lang === "AR" ? "تم إرجاع شاحن لابتوب بنجاح إلى عمر حسن" : "Laptop Charger successfully returned to Omar Hassan", time: lang === "AR" ? "منذ ساعتين" : "2h ago", date: "2026-03-08", unread: false, type: "claims" },
-    { id: 4, icon: AlertTriangle, title: lang === "AR" ? "اكتملت النسخة الاحتياطية" : "System Backup Complete", desc: lang === "AR" ? "تمت النسخة الاحتياطية اليومية بنجاح – 142MB" : "Daily backup completed successfully – 142MB", time: lang === "AR" ? "منذ 3 ساعات" : "3h ago", date: "2026-03-08", unread: true, type: "system" },
-    { id: 5, icon: FileText, title: lang === "AR" ? "تم تقديم بلاغ عثور جديد" : "New Found Report Filed", desc: lang === "AR" ? "فاطمة صالح قدمت بلاغ عثور جديد لكتاب هندسة" : "Fatima Saleh filed a new found report for Engineering Textbook", time: lang === "AR" ? "منذ 5 ساعات" : "5h ago", date: "2026-03-08", unread: false, type: "claims" },
-    { id: 6, icon: AlertTriangle, title: lang === "AR" ? "تم حظر حساب مستخدم" : "User Account Banned", desc: lang === "AR" ? "ياسر بن علي تم حظره بسبب مطالبات كاذبة متكررة" : "Yasser Bin Ali banned for repeated false claims", time: lang === "AR" ? "منذ يوم" : "1d ago", date: "2026-03-07", unread: false, type: "system" },
-    { id: 7, icon: ShieldCheck, title: lang === "AR" ? "تم قبول مطالبة" : "Claim Approved", desc: lang === "AR" ? "CLM-004 تم قبوله – سارة محمد" : "CLM-004 approved – Sara Mohammed", time: lang === "AR" ? "منذ يوم" : "1d ago", date: "2026-03-07", unread: false, type: "claims" },
-    { id: 8, icon: AlertTriangle, title: lang === "AR" ? "انتهت صلاحية عنصر تلقائياً" : "Item Auto-Expired", desc: lang === "AR" ? "RPT-015 – مظلة مكسورة تم أرشفتها تلقائياً" : "RPT-015 – Broken Umbrella auto-archived after 21 days", time: lang === "AR" ? "منذ يومين" : "2d ago", date: "2026-03-06", unread: false, type: "system" },
-    { id: 9, icon: FileText, title: lang === "AR" ? "تم تقديم بلاغ فقدان جديد" : "New Lost Report Filed", desc: lang === "AR" ? "منى عبدالرحمن فقدت فلاش USB في قسم علوم الحاسوب" : "Mona Abdulrahman lost USB Flash Drive at CS Dept", time: lang === "AR" ? "منذ 3 أيام" : "3d ago", date: "2026-03-05", unread: false, type: "claims" },
-    { id: 10, icon: AlertTriangle, title: lang === "AR" ? "تم تحديث إعدادات النظام" : "System Settings Updated", desc: lang === "AR" ? "تم تغيير مهلة انتهاء صلاحية المطالبات إلى 21 يوماً" : "Claim expiry timeout changed to 21 days", time: lang === "AR" ? "منذ 4 أيام" : "4d ago", date: "2026-03-04", unread: false, type: "system" },
-  ];
+  const { data: notificationsData, isLoading } = useGetNotifications();
+  const markAsReadMutation = useMarkNotificationAsRead();
+  const deleteMutation = useDeleteNotification();
 
-  const [notifications, setNotifications] = useState(initialNotifications);
   const [typeFilter, setTypeFilter] = useState<"all" | NotifType>("all");
   const [dateFilter, setDateFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filtered = notifications.filter((n) => {
+  const notifications = notificationsData || [];
+
+  const formattedNotifications = notifications.map(n => {
+    const d = new Date(n.createdAt);
+    return {
+      ...n,
+      date: d.toISOString().split('T')[0],
+      time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      icon: n.type === "system" ? AlertTriangle : (n.type === "claims" ? ShieldCheck : Bell),
+      desc: n.message,
+      unread: !n.isRead
+    };
+  });
+
+  const filtered = formattedNotifications.filter((n) => {
     const matchType = typeFilter === "all" || n.type === typeFilter;
     const matchDate = dateFilter === "all" || n.date === dateFilter;
     const matchSearch = n.title.toLowerCase().includes(searchQuery.toLowerCase()) || n.desc.toLowerCase().includes(searchQuery.toLowerCase());
@@ -70,19 +75,27 @@ const Notifications = () => {
     else setSelectedIds(new Set(filtered.map((n) => n.id)));
   };
 
-  const handleDeleteSelected = () => {
-    setNotifications((prev) => prev.filter((n) => !selectedIds.has(n.id)));
-    toast({ title: "🗑️ " + (lang === "AR" ? "تم حذف الإشعارات" : "Notifications Deleted"), description: `${selectedIds.size} ${lang === "AR" ? "إشعار تم حذفه" : "notifications removed"}` });
-    setSelectedIds(new Set());
+  const handleDeleteSelected = async () => {
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => deleteMutation.mutateAsync(id)));
+      toast({ title: "🗑️ " + (lang === "AR" ? "تم حذف الإشعارات" : "Notifications Deleted"), description: `${selectedIds.size} ${lang === "AR" ? "إشعار تم حذفه" : "notifications removed"}` });
+      setSelectedIds(new Set());
+    } catch (e) {
+      toast({ title: lang === "AR" ? "خطأ" : "Error", description: lang === "AR" ? "فشل حذف الإشعارات" : "Failed to delete notifications", variant: "destructive" });
+    }
   };
 
-  const handleMarkSelectedRead = () => {
-    setNotifications((prev) => prev.map((n) => selectedIds.has(n.id) ? { ...n, unread: false } : n));
-    toast({ title: "✅ " + (lang === "AR" ? "تم التحديد كمقروء" : "Marked as Read"), description: `${selectedIds.size} ${lang === "AR" ? "إشعار تم تحديده كمقروء" : "notifications marked as read"}` });
-    setSelectedIds(new Set());
+  const handleMarkSelectedRead = async () => {
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => markAsReadMutation.mutateAsync(id)));
+      toast({ title: "✅ " + (lang === "AR" ? "تم التحديد كمقروء" : "Marked as Read"), description: `${selectedIds.size} ${lang === "AR" ? "إشعار تم تحديده كمقروء" : "notifications marked as read"}` });
+      setSelectedIds(new Set());
+    } catch (e) {
+      toast({ title: lang === "AR" ? "خطأ" : "Error", description: lang === "AR" ? "فشل تحديد الإشعارات كمقروءة" : "Failed to mark notifications as read", variant: "destructive" });
+    }
   };
 
-  const uniqueDates = [...new Set(notifications.map((n) => n.date))];
+  const uniqueDates = [...new Set(formattedNotifications.map((n) => n.date))];
 
   return (
     <DashboardLayout title={t("notificationsPage", lang)} subtitle={t("notificationsSubtitle", lang)}>
@@ -138,7 +151,12 @@ const Notifications = () => {
 
       {/* Notifications List */}
       <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card shadow-card">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-4"></div>
+            <p className="text-sm font-medium text-muted-foreground">{lang === "AR" ? "جاري التحميل..." : "Loading..."}</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
               <Bell className="h-8 w-8 text-muted-foreground/40" />
