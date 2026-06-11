@@ -1,7 +1,18 @@
+import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Star, MessageSquare, Reply } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { t } from "@/lib/i18n";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 const feedbacks = [
   { id: 1, from: "Ahmed Ali", email: "ahmed.ali@hu.edu.ye", subject: "Great service – got my phone back!", message: "I lost my Samsung phone near the Engineering Faculty and got it back within 2 days. The system is very helpful. Thank you to the team!", rating: 5, date: "2026-02-08", replied: true },
