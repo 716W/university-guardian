@@ -1,34 +1,28 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Search, Download } from "lucide-react";
-import { useState } from "react";
+import { Search, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { t } from "@/lib/i18n";
-
-const logs = [
-  { id: 1, admin: "Admin Manager", action: "Approved claim CLM-001", target: "Ahmed Ali – Samsung Galaxy S23", timestamp: "2026-02-09 10:32:15", ip: "192.168.1.45" },
-  { id: 2, admin: "Admin Manager", action: "Deleted report RPT-011", target: "Unknown – Broken Umbrella", timestamp: "2026-02-09 09:18:42", ip: "192.168.1.45" },
-  { id: 3, admin: "Dr. Nabil Al-Qadhi", action: "Banned user HU-2021-0455", target: "Yasser Bin Ali – Repeated false claims", timestamp: "2026-02-08 16:05:33", ip: "10.0.0.22" },
-  { id: 4, admin: "Admin Manager", action: "Created new location", target: "Lecture Hall B3", timestamp: "2026-02-08 14:22:10", ip: "192.168.1.45" },
-  { id: 5, admin: "Admin Manager", action: "Completed handover", target: "RPT-003 – Laptop Charger to Omar Hassan", timestamp: "2026-02-08 11:50:08", ip: "192.168.1.45" },
-  { id: 6, admin: "Amina Saleh", action: "Updated report status", target: "RPT-005 – Engineering Textbook → Claimed", timestamp: "2026-02-07 15:30:22", ip: "10.0.0.55" },
-  { id: 7, admin: "Admin Manager", action: "Exported user data", target: "CSV export – 2847 records", timestamp: "2026-02-07 13:45:18", ip: "192.168.1.45" },
-  { id: 8, admin: "Admin Manager", action: "Modified system settings", target: "Claim auto-expiry changed from 14 to 21 days", timestamp: "2026-02-07 10:12:55", ip: "192.168.1.45" },
-  { id: 9, admin: "Dr. Nabil Al-Qadhi", action: "Rejected claim CLM-004", target: "Insufficient proof – Calculator", timestamp: "2026-02-06 17:20:44", ip: "10.0.0.22" },
-  { id: 10, admin: "Admin Manager", action: "Added new category", target: "Bags & Wallets", timestamp: "2026-02-06 09:08:30", ip: "192.168.1.45" },
-  { id: 11, admin: "System", action: "Automated backup completed", target: "Database snapshot – 142MB", timestamp: "2026-02-06 03:00:00", ip: "127.0.0.1" },
-  { id: 12, admin: "Admin Manager", action: "Created admin account", target: "Amina Saleh – Library Staff", timestamp: "2026-02-05 11:30:15", ip: "192.168.1.45" },
-];
+import { useGetAuditLogs } from "@/hooks/useAuditLogs";
+import { useDebounce } from "@/hooks/use-debounce";
 
 const AuditLogs = () => {
   const { lang, isRTL } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
-  const filtered = logs.filter(
-    (l) =>
-      l.admin.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.target.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchQuery]);
+
+  const { data, isLoading, isError } = useGetAuditLogs(page, pageSize, debouncedSearchQuery);
+
+  const logs = data?.data || [];
+  const totalPages = data?.totalPages || 1;
+  const totalRecords = data?.totalRecords || 0;
 
   return (
     <DashboardLayout title={t("auditLogs", lang)} subtitle={t("auditLogsSubtitle", lang)}>
@@ -56,30 +50,67 @@ const AuditLogs = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.map((log) => (
-                <tr key={log.id} className="transition-colors hover:bg-muted/30">
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{log.timestamp}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-card-foreground">{log.admin}</td>
-                  <td className="px-4 py-3 text-xs">
-                    <span className={`${
-                      log.action.includes("Deleted") || log.action.includes("Banned")
-                        ? "text-destructive"
-                        : log.action.includes("Approved") || log.action.includes("Completed")
-                        ? "text-success"
-                        : "text-card-foreground"
-                    }`}>{log.action}</span>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                    Loading...
                   </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground max-w-xs truncate">{log.target}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{log.ip}</td>
                 </tr>
-              ))}
+              ) : isError ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-destructive">
+                    Failed to load audit logs.
+                  </td>
+                </tr>
+              ) : logs.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                    No logs found.
+                  </td>
+                </tr>
+              ) : (
+                logs.map((log) => (
+                  <tr key={log.id} className="transition-colors hover:bg-muted/30">
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{log.timestamp}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-card-foreground">{log.adminName}</td>
+                    <td className="px-4 py-3 text-xs">
+                      <span className={`${
+                        log.action.includes("Deleted") || log.action.includes("Banned")
+                          ? "text-destructive"
+                          : log.action.includes("Approved") || log.action.includes("Completed")
+                          ? "text-success"
+                          : "text-card-foreground"
+                      }`}>{log.action}</span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground max-w-xs truncate">{log.target}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{log.ipAddress}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
-        <div className="border-t border-border px-4 py-3">
+        <div className="border-t border-border px-4 py-3 flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
-            {t("showing", lang)} {filtered.length} {t("of", lang)} {logs.length} {t("logEntries", lang)}
+            {t("showing", lang)} {logs.length} {t("of", lang)} {totalRecords} {t("logEntries", lang)}
           </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1 || isLoading}
+              className="p-1 rounded border border-border disabled:opacity-50 hover:bg-muted"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs">{page} / {totalPages}</span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages || totalPages === 0 || isLoading}
+              className="p-1 rounded border border-border disabled:opacity-50 hover:bg-muted"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </DashboardLayout>
