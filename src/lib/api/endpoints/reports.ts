@@ -1,13 +1,5 @@
 import { apiClient } from '../apiClient';
-
-export interface ReportItem {
-    id: number;
-    itemName: string;
-    description?: string;
-    imagePath: string;
-    dateReported: string;
-    reportType: number; // 1 for lost, 2 for found
-}
+import { ReportListItem, ReportDetails } from '../../../types/report';
 
 export interface PaginatedResponse<T> {
     pageNumber: number;
@@ -19,30 +11,16 @@ export interface PaginatedResponse<T> {
     data: T[];
 }
 
-export interface GetReportsParams {
+export interface GetAdminReportsParams {
+    search?: string;
+    categoryId?: number | string;
+    locationId?: number | string;
+    statusType?: number | string;
+    reportType?: number | string;
+    fromDate?: string;
+    toDate?: string;
     pageNumber?: number;
     pageSize?: number;
-}
-
-export const fetchReports = async (params: GetReportsParams): Promise<PaginatedResponse<ReportItem>> => {
-    const { data } = await apiClient.get<PaginatedResponse<ReportItem>>('/api/v1/reports', {
-        params: {
-            pageNumber: params.pageNumber || 1,
-            pageSize: params.pageSize || 10,
-        }
-    });
-    return data;
-};
-
-
-export interface ReportDetails {
-    id: number;
-    itemName: string;
-    images?: { id: number, path: string }[];
-    reportType: number;
-    locationName?: string;
-    dateReported: string;
-    description?: string;
 }
 
 export interface ApiResponse<T> {
@@ -52,8 +30,24 @@ export interface ApiResponse<T> {
     errors: any;
 }
 
+export const fetchAdminReports = async (params: GetAdminReportsParams): Promise<PaginatedResponse<ReportListItem>> => {
+    // clean up params to remove empty strings/undefined
+    const cleanedParams = Object.fromEntries(
+        Object.entries(params).filter(([_, v]) => v != null && v !== "" && v !== "all")
+    );
+    const { data } = await apiClient.get<PaginatedResponse<ReportListItem>>('/api/v1/admin/reports', {
+        params: {
+            pageNumber: params.pageNumber || 1,
+            pageSize: params.pageSize || 10,
+            ...cleanedParams
+        }
+    });
+    return data;
+};
+
 export const fetchReportById = async (id: number | string): Promise<ApiResponse<ReportDetails>> => {
-    const { data } = await apiClient.get<ApiResponse<ReportDetails>>(`/api/v1/reports/${id}`);
+    const numericId = Number(id);
+    const { data } = await apiClient.get<ApiResponse<ReportDetails>>(`/api/v1/reports/${numericId}`);
     return data;
 };
 
@@ -61,6 +55,15 @@ export const deleteReport = async (id: number | string): Promise<void> => {
     await apiClient.delete(`/api/v1/admin/reports/${id}`);
 };
 
-export const updateReport = async (id: number | string, formData: FormData): Promise<void> => {
-    await apiClient.put(`/api/v1/reports/${id}`, formData);
+export const updateReport = async (id: number | string, payload: any): Promise<ApiResponse<any>> => {
+    const numericId = Number(id);
+    const { data } = await apiClient.put(`/api/v1/reports/${numericId}`, payload);
+    return data;
+};
+
+export const changeReportStatus = async (id: number | string, statusType: number | string): Promise<ApiResponse<any>> => {
+    const numericId = Number(id);
+    const numericStatus = Number(statusType);
+    const { data } = await apiClient.put(`/api/v1/admin/reports/${numericId}/status`, { statusType: numericStatus });
+    return data;
 };

@@ -1,41 +1,32 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { StatusBadge } from "@/components/StatusBadge";
-import { MoreHorizontal, Search, UserPlus, X, Shield, AlertTriangle, KeyRound, Ban, Activity, FileText, ShieldCheck, Download, Loader2 } from "lucide-react";
+import { MoreHorizontal, Search, UserPlus, X, Shield, AlertTriangle, KeyRound, Ban, Activity, FileText, ShieldCheck, Download, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { t } from "@/lib/i18n";
+import { useDebounce } from "@/hooks/use-debounce";
+import { exportUsers } from "@/lib/api/endpoints/users";
+import { useGetUsers, useAddUser, useUpdateUser, useChangeRole, useToggleBanUser, useResetPasswordUser } from "@/hooks/queries/useUsers";
+import { USER_ROLES } from "@/types/user";
+import type { User } from "@/types/user";
 
-type User = {
-  id: string; name: string; email: string; role: string; department: string;
-  status: "active" | "banned"; joined: string; reports: number; claims: number;
-};
-
-const users: User[] = [
-  { id: "HU-2023-1045", name: "Ahmed Ali", email: "ahmed.ali92@gmail.com", role: "Student", department: "Computer Engineering", status: "active", joined: "2023-09-01", reports: 5, claims: 2 },
-  { id: "HU-2022-0892", name: "Khalid Nasser", email: "khalid.nasser@yahoo.com", role: "Student", department: "Business Admin", status: "active", joined: "2022-09-01", reports: 3, claims: 1 },
-  { id: "HU-2024-0215", name: "Hassan Abdo", email: "hassan_abdo@gmail.com", role: "Student", department: "Medicine", status: "active", joined: "2024-09-01", reports: 1, claims: 0 },
-  { id: "HU-STF-0041", name: "Dr. Nabil Al-Qadhi", email: "nabil.qadhi@gmail.com", role: "Admin", department: "Engineering Faculty", status: "active", joined: "2019-03-15", reports: 0, claims: 0 },
-  { id: "HU-2023-0672", name: "Sara Mohammed", email: "sara.mhd99@gmail.com", role: "Student", department: "Architecture", status: "active", joined: "2023-09-01", reports: 7, claims: 3 },
-  { id: "HU-2021-0455", name: "Yasser Bin Ali", email: "yasser.ali@yahoo.com", role: "Student", department: "Law", status: "banned", joined: "2021-09-01", reports: 2, claims: 1 },
-  { id: "HU-STF-0078", name: "Amina Saleh", email: "amina.saleh@gmail.com", role: "Super Admin", department: "Main Library", status: "active", joined: "2020-08-01", reports: 0, claims: 0 },
-  { id: "HU-2024-0389", name: "Fatima Saleh", email: "fatima.s2000@gmail.com", role: "Student", department: "Pharmacy", status: "active", joined: "2024-09-01", reports: 4, claims: 2 },
-  { id: "HU-2022-1102", name: "Mona Abdulrahman", email: "mona_abd@yahoo.com", role: "Student", department: "Computer Science", status: "active", joined: "2022-09-01", reports: 6, claims: 1 },
-  { id: "HU-SEC-0012", name: "Nabil Security", email: "nabil.sec@gmail.com", role: "Admin", department: "Campus Security", status: "active", joined: "2018-01-10", reports: 0, claims: 0 },
-];
-
-const getRoleBadge = (role: string) => {
-  if (role === "Super Admin") return "bg-primary/15 text-primary border border-primary/30 font-semibold";
-  if (role === "Admin") return "bg-warning/15 text-warning border border-warning/30 font-semibold";
+const getRoleBadge = (roles?: string[]) => {
+  const primaryRole = roles?.[0] || "User";
+  if (primaryRole === "Admin") return "bg-warning/15 text-warning border border-warning/30 font-semibold";
   return "bg-muted text-muted-foreground";
 };
 
 const UsersPage = () => {
   const { lang, isRTL } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 500);
   const [roleFilter, setRoleFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showAddUser, setShowAddUser] = useState(false);
@@ -43,13 +34,32 @@ const UsersPage = () => {
   const [changeRoleUser, setChangeRoleUser] = useState<User | null>(null);
   const [banUser, setBanUser] = useState<User | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [newRole, setNewRole] = useState("Student");
+  const [newRole, setNewRole] = useState<string>("User");
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const [addForm, setAddForm] = useState({ name: "", email: "", role: "Student", department: "", id: "" });
+  const [addForm, setAddForm] = useState({ name: "", email: "", password: "", role: "User" as string });
   const [addErrors, setAddErrors] = useState<Record<string, string>>({});
-  const [editForm, setEditForm] = useState({ name: "", email: "", department: "" });
+  const [editForm, setEditForm] = useState({ name: "", email: "" });
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setPage(1); // reset to page 1 on search
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    setPage(1); // reset to page 1 on filter change
+  }, [roleFilter]);
+
+  const { data: usersData, isLoading } = useGetUsers(page, pageSize, debouncedSearch, roleFilter);
+  const users = usersData?.data || [];
+  const totalPages = usersData?.totalPages || 1;
+  const totalRecords = usersData?.totalRecords || 0;
+
+  const addUserMutation = useAddUser(page, pageSize, debouncedSearch, roleFilter);
+  const updateUserMutation = useUpdateUser(page, pageSize, debouncedSearch, roleFilter);
+  const changeRoleMutation = useChangeRole(page, pageSize, debouncedSearch, roleFilter);
+  const toggleBanMutation = useToggleBanUser(page, pageSize, debouncedSearch, roleFilter);
+  const resetPasswordMutation = useResetPasswordUser();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -59,61 +69,116 @@ const UsersPage = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const filtered = users.filter((u) => {
-    const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase()) || u.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === "all" || u.role.toLowerCase().replace(" ", "") === roleFilter;
-    return matchesSearch && matchesRole;
-  });
-
-  const handleExport = () => {
+  const handleExport = async () => {
     setExporting(true);
-    setTimeout(() => {
-      setExporting(false);
-      const csv = "ID,Name,Email,Role,Department,Status,Joined\n" + users.map(u => `${u.id},${u.name},${u.email},${u.role},${u.department},${u.status},${u.joined}`).join("\n");
+    try {
+      // Option A: Backend Export
+      const blob = await exportUsers();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "users_export.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "✅ " + t("exportComplete", lang), description: t("usersExported", lang) });
+    } catch (error) {
+      // Option B: Client-side CSV Fallback
+      console.warn("Backend export failed, falling back to client-side CSV", error);
+      const csv = "ID,Name,Email,Role,Status,Joined\n" + users.map(u => `${u.id},${u.name},${u.email},${u.roles?.join(" ")},${u.isActive},${u.created}`).join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = "users_export.csv"; a.click();
+      a.href = url; a.download = "users_export_fallback.csv"; a.click();
       URL.revokeObjectURL(url);
       toast({ title: "✅ " + t("exportComplete", lang), description: t("usersExported", lang) });
-    }, 1500);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const openEditUser = (user: User) => {
-    setEditForm({ name: user.name, email: user.email, department: user.department });
+    setEditForm({ name: user.name, email: user.email });
     setEditErrors({});
     setEditUser(user);
     setOpenMenuId(null);
   };
 
-  const handleEditSave = () => {
+  const handleEditSave = async () => {
     const errs: Record<string, string> = {};
     if (!editForm.name.trim()) errs.name = t("nameRequired", lang);
     if (!editForm.email.trim()) errs.email = t("emailRequired", lang);
     if (Object.keys(errs).length > 0) { setEditErrors(errs); return; }
-    toast({ title: "✅ " + (lang === "AR" ? "تم تحديث المستخدم" : "User Updated"), description: `${editUser?.name} ${lang === "AR" ? "تم تحديث ملفه الشخصي" : "'s profile has been updated."}` });
-    setEditUser(null);
+
+    try {
+      await updateUserMutation.mutateAsync({
+        id: editUser!.id,
+        payload: {
+          name: editForm.name,
+          email: editForm.email
+        }
+      });
+      toast({ title: "✅ " + (lang === "AR" ? "تم تحديث المستخدم" : "User Updated"), description: `${editUser?.name} ${lang === "AR" ? "تم تحديث ملفه الشخصي" : "'s profile has been updated."}` });
+      setEditUser(null);
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: "Error", description: (e as Error).message || "Failed to update user" });
+    }
   };
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     const errs: Record<string, string> = {};
     if (!addForm.name.trim()) errs.name = t("nameRequired", lang);
     if (!addForm.email.trim()) errs.email = t("emailRequired", lang);
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addForm.email)) errs.email = t("invalidEmail", lang);
+    if (!addForm.password) errs.password = t("passwordRequired", lang) || "Password required";
     if (Object.keys(errs).length > 0) { setAddErrors(errs); return; }
-    toast({ title: "✅ " + (lang === "AR" ? "تمت إضافة المستخدم" : "User Added"), description: `${addForm.name} ${lang === "AR" ? "تمت إضافته بنجاح" : "has been added successfully."}` });
-    setShowAddUser(false);
-    setAddForm({ name: "", email: "", role: "Student", department: "", id: "" });
+
+    try {
+      await addUserMutation.mutateAsync({
+        name: addForm.name,
+        email: addForm.email,
+        password: addForm.password,
+        role: addForm.role
+      });
+      toast({ title: "✅ " + (lang === "AR" ? "تمت إضافة المستخدم" : "User Added"), description: `${addForm.name} ${lang === "AR" ? "تمت إضافته بنجاح" : "has been added successfully."}` });
+      setShowAddUser(false);
+      setAddForm({ name: "", email: "", password: "", role: "User" });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: "Error", description: (e as Error).message || "Failed to add user" });
+    }
   };
 
-  const handleChangeRole = () => {
-    toast({ title: "✅ " + (lang === "AR" ? "تم تحديث الدور" : "Role Updated"), description: `${changeRoleUser?.name} ${lang === "AR" ? "تم تغيير دوره إلى" : "'s role changed to"} ${newRole}.` });
-    setChangeRoleUser(null);
+  const handleChangeRole = async () => {
+    try {
+      await changeRoleMutation.mutateAsync({
+        id: changeRoleUser!.id,
+        payload: { role: newRole }
+      });
+      toast({ title: "✅ " + (lang === "AR" ? "تم تحديث الدور" : "Role Updated"), description: `${changeRoleUser?.name} ${lang === "AR" ? "تم تغيير دوره إلى" : "'s role changed to"} ${newRole}.` });
+      setChangeRoleUser(null);
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: "Error", description: (e as Error).message || "Failed to change role" });
+    }
   };
 
-  const handleBan = () => {
-    toast({ title: "🚫 " + (lang === "AR" ? "تم حظر المستخدم" : "User Banned"), description: `${banUser?.name} ${lang === "AR" ? "تم حظره نهائياً" : "has been permanently banned."}` });
-    setBanUser(null);
+  const handleToggleBan = async () => {
+    try {
+      await toggleBanMutation.mutateAsync(banUser!.id);
+      const isBanned = banUser!.isActive;
+      toast({ title: isBanned ? "🚫 " + (lang === "AR" ? "تم حظر المستخدم" : "User Banned") : "✅ " + (lang === "AR" ? "تم رفع الحظر" : "User Unbanned"), description: `${banUser?.name} ${isBanned ? (lang === "AR" ? "تم حظره نهائياً" : "has been permanently banned.") : (lang === "AR" ? "تم رفع الحظر عنه" : "has been unbanned.")}` });
+      setBanUser(null);
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: "Error", description: (e as Error).message || "Failed to toggle ban status" });
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!selectedUser) return;
+    try {
+      const res = await resetPasswordMutation.mutateAsync(selectedUser.id);
+      toast({ title: "✅ " + (lang === "AR" ? "تم إعادة تعيين كلمة المرور" : "Password Reset"), description: `${lang === "AR" ? "كلمة المرور الجديدة هي:" : "New password is:"} ${res.data.newPassword}` });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: "Error", description: (e as Error).message || "Failed to reset password" });
+    }
   };
 
   return (
@@ -128,15 +193,15 @@ const UsersPage = () => {
         <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
           <option value="all">{t("allRoles", lang)}</option>
-          <option value="student">{t("student", lang)}</option>
-          <option value="admin">{t("admin", lang)}</option>
-          <option value="superadmin">{t("superAdmin", lang)}</option>
+          {USER_ROLES.map((r) => (
+            <option key={r} value={r}>{r}</option>
+          ))}
         </select>
         <button onClick={handleExport} disabled={exporting}
           className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50">
           {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} {t("export", lang)}
         </button>
-        <button onClick={() => { setShowAddUser(true); setAddForm({ name: "", email: "", role: "Student", department: "", id: "" }); setAddErrors({}); }}
+        <button onClick={() => { setShowAddUser(true); setAddForm({ name: "", email: "", password: "", role: "User" }); setAddErrors({}); }}
           className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
           <UserPlus className="h-4 w-4" /> {t("addUser", lang)}
         </button>
@@ -152,27 +217,33 @@ const UsersPage = () => {
                 <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thName", lang)}</th>
                 <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thEmail", lang)}</th>
                 <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thRole", lang)}</th>
-                <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thDepartment", lang)}</th>
                 <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thStatus", lang)}</th>
                 <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thJoined", lang)}</th>
                 <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thActions", lang)}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.map((user) => (
+              {isLoading ? (
+                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></td></tr>
+              ) : users.length === 0 ? (
+                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">{lang === "AR" ? "لا يوجد مستخدمين" : "No users found"}</td></tr>
+              ) : users.map((user) => (
                 <tr key={user.id} className="transition-colors hover:bg-muted/30 cursor-pointer" onClick={() => setSelectedUser(user)}>
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{user.id}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{user.name.split(" ").map(n => n[0]).join("")}</div>
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{user.name?.split(" ").map(n => n[0]).join("")}</div>
                       <span className="font-medium text-card-foreground">{user.name}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
-                  <td className="px-4 py-3"><span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs ${getRoleBadge(user.role)}`}>{user.role}</span></td>
-                  <td className="px-4 py-3 text-muted-foreground">{user.department}</td>
-                  <td className="px-4 py-3"><StatusBadge status={user.status} /></td>
-                  <td className="px-4 py-3 text-muted-foreground">{user.joined}</td>
+                  <td className="px-4 py-3"><span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs ${getRoleBadge(user.roles)}`}>{user.roles?.[0] || 'User'}</span></td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${user.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {user.isActive ? (lang === "AR" ? "نشط" : "Active") : (lang === "AR" ? "محظور" : "Banned")}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{user.created}</td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="relative" ref={openMenuId === user.id ? menuRef : null}>
                       <button onClick={() => setOpenMenuId(openMenuId === user.id ? null : user.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
@@ -183,13 +254,17 @@ const UsersPage = () => {
                           <button onClick={() => openEditUser(user)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-popover-foreground hover:bg-muted">
                             <Shield className="h-4 w-4" /> {t("editProfile", lang)}
                           </button>
-                          <button onClick={() => { setChangeRoleUser(user); setNewRole(user.role); setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-popover-foreground hover:bg-muted">
+                          <button onClick={() => { setChangeRoleUser(user); setNewRole(user.roles?.[0] || "User"); setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-popover-foreground hover:bg-muted">
                             <KeyRound className="h-4 w-4" /> {t("changeRole", lang)}
                           </button>
-                          <div className="my-1 h-px bg-border" />
-                          <button onClick={() => { setBanUser(user); setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10">
-                            <Ban className="h-4 w-4" /> {t("banUser", lang)}
-                          </button>
+                          {user.roles?.[0] !== 'SuperAdmin' && (
+                            <>
+                              <div className="my-1 h-px bg-border" />
+                              <button onClick={() => { setBanUser(user); setOpenMenuId(null); }} className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${user.isActive ? 'text-destructive hover:bg-destructive/10' : 'text-green-600 hover:bg-green-50'}`}>
+                                <Ban className="h-4 w-4" /> {user.isActive ? t("banUser", lang) : (lang === "AR" ? "رفع الحظر" : "Unban User")}
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -199,9 +274,31 @@ const UsersPage = () => {
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between border-t border-border px-4 py-3">
-          <p className="text-sm text-muted-foreground">{t("showing", lang)} {filtered.length} {t("of", lang)} {users.length} {t("users", lang).toLowerCase()}</p>
-        </div>
+        
+        {/* Pagination */}
+        {!isLoading && totalPages > 0 && (
+          <div className="flex items-center justify-between border-t border-border px-4 py-3">
+            <p className="text-sm text-muted-foreground">
+              {t("showing", lang)} {(page - 1) * pageSize + 1} {t("to", lang)} {Math.min(page * pageSize, totalRecords)} {t("of", lang)} {totalRecords} {t("users", lang).toLowerCase()}
+            </p>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setPage(p => Math.max(1, p - 1))} 
+                disabled={page === 1}
+                className="rounded-md p-1.5 border border-border hover:bg-muted disabled:opacity-50"
+              >
+                {isRTL ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              </button>
+              <button 
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+                disabled={page === totalPages}
+                className="rounded-md p-1.5 border border-border hover:bg-muted disabled:opacity-50"
+              >
+                {isRTL ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* User Profile Slide-over */}
@@ -215,26 +312,40 @@ const UsersPage = () => {
             </div>
             <div className="p-6 space-y-6">
               <div className="flex flex-col items-center text-center">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-primary">{selectedUser.name.split(" ").map(n => n[0]).join("")}</div>
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-primary">{selectedUser.name?.split(" ").map(n => n[0]).join("")}</div>
                 <h3 className="mt-3 text-lg font-bold text-card-foreground">{selectedUser.name}</h3>
                 <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
-                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs ${getRoleBadge(selectedUser.role)}`}>{selectedUser.role}</span>
+                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs ${getRoleBadge(selectedUser.roles)}`}>{selectedUser.roles?.[0] || 'User'}</span>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-lg border border-border bg-muted/30 p-3 text-center"><FileText className="mx-auto h-4 w-4 text-muted-foreground" /><p className="mt-1 text-lg font-bold text-card-foreground">{selectedUser.reports}</p><p className="text-[10px] text-muted-foreground">{t("reports", lang)}</p></div>
-                <div className="rounded-lg border border-border bg-muted/30 p-3 text-center"><ShieldCheck className="mx-auto h-4 w-4 text-muted-foreground" /><p className="mt-1 text-lg font-bold text-card-foreground">{selectedUser.claims}</p><p className="text-[10px] text-muted-foreground">{t("claims", lang)}</p></div>
-                <div className="rounded-lg border border-border bg-muted/30 p-3 text-center"><Activity className="mx-auto h-4 w-4 text-muted-foreground" /><p className="mt-1 text-lg font-bold text-card-foreground">{selectedUser.status === "active" ? (lang === "AR" ? "متصل" : "Online") : (lang === "AR" ? "غير متصل" : "Offline")}</p><p className="text-[10px] text-muted-foreground">{t("thStatus", lang)}</p></div>
+                <div className="rounded-lg border border-border bg-muted/30 p-3 text-center"><FileText className="mx-auto h-4 w-4 text-muted-foreground" /><p className="mt-1 text-lg font-bold text-card-foreground">{selectedUser.reportsCount}</p><p className="text-[10px] text-muted-foreground">{t("reports", lang)}</p></div>
+                <div className="rounded-lg border border-border bg-muted/30 p-3 text-center"><ShieldCheck className="mx-auto h-4 w-4 text-muted-foreground" /><p className="mt-1 text-lg font-bold text-card-foreground">{selectedUser.claimsCount}</p><p className="text-[10px] text-muted-foreground">{t("claims", lang)}</p></div>
+                <div className="rounded-lg border border-border bg-muted/30 p-3 text-center"><Activity className="mx-auto h-4 w-4 text-muted-foreground" /><p className="mt-1 text-lg font-bold text-card-foreground">{selectedUser.isActive ? (lang === "AR" ? "نشط" : "Active") : (lang === "AR" ? "محظور" : "Banned")}</p><p className="text-[10px] text-muted-foreground">{t("thStatus", lang)}</p></div>
               </div>
               <div className="space-y-3">
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("department", lang)}</span><span className="font-medium text-card-foreground">{selectedUser.department}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("thId", lang)}</span><span className="font-mono text-card-foreground">{selectedUser.id}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("thJoined", lang)}</span><span className="text-card-foreground">{selectedUser.joined}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("thJoined", lang)}</span><span className="text-card-foreground">{selectedUser.created}</span></div>
               </div>
               <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
                 <div className="flex items-center gap-2 mb-3"><AlertTriangle className="h-4 w-4 text-destructive" /><h4 className="text-sm font-bold text-destructive">{t("dangerZone", lang)}</h4></div>
                 <div className="space-y-2">
-                  <button className="flex w-full items-center justify-center gap-2 rounded-md border border-destructive/30 bg-card px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"><KeyRound className="h-4 w-4" /> {t("resetPassword", lang)}</button>
-                  <button onClick={() => { setBanUser(selectedUser); setSelectedUser(null); }} className="flex w-full items-center justify-center gap-2 rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors"><Ban className="h-4 w-4" /> {t("permanentlyBan", lang)}</button>
+                  <button onClick={handleResetPassword} disabled={resetPasswordMutation.isPending} className="flex w-full items-center justify-center gap-2 rounded-md border border-destructive/30 bg-card px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50">
+                    {resetPasswordMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <KeyRound className="h-4 w-4" /> {t("resetPassword", lang)}
+                  </button>
+                  {selectedUser.roles?.[0] !== 'SuperAdmin' && (
+                    <button
+                      onClick={() => {
+                        const target = selectedUser;
+                        setSelectedUser(null);
+                        setBanUser(target);
+                      }}
+                      disabled={toggleBanMutation.isPending}
+                      className={`flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${selectedUser.isActive ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                    >
+                      <Ban className="h-4 w-4" /> {selectedUser.isActive ? t("permanentlyBan", lang) : (lang === "AR" ? "رفع الحظر" : "Unban User")}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -262,29 +373,37 @@ const UsersPage = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              <div className="col-span-2">
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{lang === "AR" ? "كلمة المرور" : "Password"}</label>
+                <input type="password" placeholder="********" value={addForm.password} onChange={(e) => { setAddForm(f => ({ ...f, password: e.target.value })); setAddErrors(e => ({ ...e, password: "" })); }}
+                  className={`w-full rounded-md border ${addErrors.password ? "border-destructive" : "border-input"} bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
+                {addErrors.password && <p className="mt-1 text-xs text-destructive">{addErrors.password}</p>}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
                 <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("role", lang)}</label>
                 <select value={addForm.role} onChange={(e) => setAddForm(f => ({ ...f, role: e.target.value }))}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-                  <option>{t("student", lang)}</option><option>{t("staff", lang)}</option><option>{t("admin", lang)}</option>
+                  {USER_ROLES.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
                 </select>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("department", lang)}</label>
-                <input type="text" placeholder={lang === "AR" ? "مثال: علوم الحاسوب" : "e.g., Computer Science"} value={addForm.department} onChange={(e) => setAddForm(f => ({ ...f, department: e.target.value }))}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setShowAddUser(false)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">{t("cancel", lang)}</button>
-              <button onClick={handleAddUser} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">{t("addUser", lang)}</button>
+              <button onClick={handleAddUser} disabled={addUserMutation.isPending} className="flex-1 flex items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+                {addUserMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t("addUser", lang)}
+              </button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Edit User Modal */}
-      <Dialog open={!!editUser} onOpenChange={() => setEditUser(null)}>
+      <Dialog open={!!editUser} onOpenChange={(open) => { if (!open) setEditUser(null); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>{t("editProfile", lang)} – {editUser?.name}</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-2">
@@ -300,39 +419,50 @@ const UsersPage = () => {
                 className={`w-full rounded-md border ${editErrors.email ? "border-destructive" : "border-input"} bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
               {editErrors.email && <p className="mt-1 text-xs text-destructive">{editErrors.email}</p>}
             </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("department", lang)}</label>
-              <input value={editForm.department} onChange={(e) => setEditForm(f => ({ ...f, department: e.target.value }))}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-            </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setEditUser(null)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">{t("cancel", lang)}</button>
-              <button onClick={handleEditSave} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">{t("saveChanges", lang)}</button>
+              <button onClick={handleEditSave} disabled={updateUserMutation.isPending} className="flex-1 flex items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+                {updateUserMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t("saveChanges", lang)}
+              </button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Change Role Modal */}
-      <Dialog open={!!changeRoleUser} onOpenChange={() => setChangeRoleUser(null)}>
+      <Dialog open={!!changeRoleUser} onOpenChange={(open) => { if (!open) setChangeRoleUser(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader><DialogTitle>{t("changeRole", lang)}</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-2">
             <p className="text-sm text-muted-foreground">{lang === "AR" ? "تحديث الدور لـ" : "Update role for"} <span className="font-medium text-foreground">{changeRoleUser?.name}</span></p>
-            <select value={newRole} onChange={(e) => setNewRole(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-              <option>{t("student", lang)}</option><option>{t("staff", lang)}</option><option>{t("admin", lang)}</option>
+            <select 
+              value={newRole} 
+              onChange={(e) => setNewRole(e.target.value)}
+              disabled={changeRoleUser?.roles?.[0] === 'SuperAdmin'}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed">
+              {USER_ROLES.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
             </select>
+            {changeRoleUser?.roles?.[0] === 'SuperAdmin' && (
+              <p className="text-xs text-muted-foreground">
+                {lang === "AR" ? "لا يمكن تعديل صلاحيات مدير النظام." : "Super Admin privileges cannot be modified."}
+              </p>
+            )}
             <div className="flex gap-3">
               <button onClick={() => setChangeRoleUser(null)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">{t("cancel", lang)}</button>
-              <button onClick={handleChangeRole} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">{t("updateRole", lang)}</button>
+              <button onClick={handleChangeRole} disabled={changeRoleMutation.isPending || changeRoleUser?.roles?.[0] === 'SuperAdmin'} className="flex-1 flex items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+                {changeRoleMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t("updateRole", lang)}
+              </button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Ban User Confirmation */}
-      <AlertDialog open={!!banUser} onOpenChange={() => setBanUser(null)}>
+      <AlertDialog open={!!banUser} onOpenChange={(open) => { if (!open) setBanUser(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("banUser", lang)} {banUser?.name}?</AlertDialogTitle>
@@ -344,7 +474,10 @@ const UsersPage = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("cancel", lang)}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBan} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{t("banUser", lang)}</AlertDialogAction>
+            <AlertDialogAction onClick={handleToggleBan} disabled={toggleBanMutation.isPending} className={`${banUser?.isActive ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : 'bg-green-600 text-white hover:bg-green-700'} flex items-center justify-center gap-2`}>
+              {toggleBanMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {banUser?.isActive ? t("banUser", lang) : (lang === "AR" ? "رفع الحظر" : "Unban User")}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

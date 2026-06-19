@@ -20,6 +20,8 @@ import {
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { TranslationKey } from "@/lib/i18n";
+import { useGetProfile, useLogout } from "@/hooks/queries/useAuth";
+import { useAuthStore } from "@/store/useAuthStore";
 
 const navGroups: { labelKey: TranslationKey; items: { titleKey: TranslationKey; url: string; icon: typeof LayoutDashboard }[] }[] = [
   {
@@ -58,6 +60,23 @@ export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const { lang, isRTL } = useLanguage();
+  const role = useAuthStore(state => state.role);
+
+  const { data: profile } = useGetProfile();
+  const { mutate: logout, isPending: isLoggingOut } = useLogout();
+
+  const userInitials = profile?.name 
+    ? profile.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() 
+    : "U";
+  const displayRole = role || "User";
+
+  const getAvatarUrl = (url: string | null | undefined) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+    return `${baseUrl.replace(/\/$/, '')}/${url.replace(/^\//, '')}`;
+  };
+  const resolvedAvatarUrl = getAvatarUrl(profile?.avatarUrl);
 
   return (
     <aside
@@ -73,10 +92,10 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="flex flex-col overflow-hidden">
             <span className="truncate text-sm font-bold text-white">
-              {t("hadramoutUniv", lang)}
+              {lang === "AR" ? "بوابة الأصول" : "HU Asset Gateway"}
             </span>
             <span className="truncate text-[11px] text-white/40">
-              {t("lostAndFound", lang)}
+              {lang === "AR" ? "نظام الإدارة المركزي" : "Central Management System"}
             </span>
           </div>
         )}
@@ -84,15 +103,26 @@ export function AppSidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto scrollbar-hide px-3 py-4 space-y-5">
-        {navGroups.map((group) => (
-          <div key={group.labelKey}>
-            {!collapsed && (
-              <p className="mb-2 px-3 text-[10px] font-bold tracking-widest text-white/30 uppercase">
-                {t(group.labelKey, lang)}
-              </p>
-            )}
-            <ul className="space-y-0.5">
-              {group.items.map((item) => (
+        {navGroups.map((group) => {
+          const isSuperAdmin = role === 'Super Admin' || role === 'SuperAdmin';
+          const filteredItems = group.items.filter(item => {
+            if (!isSuperAdmin && (item.url === '/users' || item.url === '/audit-logs')) {
+              return false;
+            }
+            return true;
+          });
+
+          if (filteredItems.length === 0) return null;
+
+          return (
+            <div key={group.labelKey}>
+              {!collapsed && (
+                <p className="mb-2 px-3 text-[10px] font-bold tracking-widest text-white/30 uppercase">
+                  {t(group.labelKey, lang)}
+                </p>
+              )}
+              <ul className="space-y-0.5">
+                {filteredItems.map((item) => (
                 <li key={item.url}>
                   <NavLink
                     to={item.url}
@@ -109,7 +139,8 @@ export function AppSidebar() {
               ))}
             </ul>
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* Collapse toggle */}
@@ -132,21 +163,30 @@ export function AppSidebar() {
       {/* User Profile Section */}
       <div className={`border-t border-white/[0.08] px-3 py-3 ${collapsed ? "flex justify-center" : ""}`}>
         {collapsed ? (
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-white">
-            AM
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-white overflow-hidden">
+            {resolvedAvatarUrl ? (
+              <img src={resolvedAvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              userInitials
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-white">
-              AM
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-white overflow-hidden">
+              {resolvedAvatarUrl ? (
+                <img src={resolvedAvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                userInitials
+              )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="truncate text-sm font-semibold text-white">{t("adminManager", lang)}</p>
-              <p className="truncate text-[11px] text-white/40">{t("superAdmin", lang)}</p>
+              <p className="truncate text-sm font-semibold text-white">{profile?.name || "User"}</p>
+              <p className="truncate text-[11px] text-white/40">{displayRole}</p>
             </div>
             <button
-              onClick={() => navigate("/login")}
-              className="rounded-lg p-1.5 text-white/30 hover:bg-white/[0.08] hover:text-white/60 transition-colors"
+              onClick={() => logout()}
+              disabled={isLoggingOut}
+              className="rounded-lg p-1.5 text-white/30 hover:bg-white/[0.08] hover:text-white/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={t("logout", lang)}
             >
               <LogOut className="h-4 w-4" />

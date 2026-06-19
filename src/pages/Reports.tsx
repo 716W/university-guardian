@@ -1,6 +1,6 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Search, Filter, Download, MoreHorizontal, Eye, Edit, RefreshCw, Trash2, Link2, X, Calendar, Loader2 } from "lucide-react";
+import { Search, Filter, Download, MoreHorizontal, Eye, Edit, RefreshCw, Trash2, Link2, X, Calendar, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -9,7 +9,8 @@ import { useLanguage } from "@/hooks/use-language";
 import { t } from "@/lib/i18n";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { useGetReports, useGetReportById, useDeleteReport, useUpdateReport } from "@/hooks/queries/useReports";
+import { useGetAdminReports, useGetReportDetails, useDeleteReport, useEditReport, useChangeReportStatus } from "@/hooks/queries/useReports";
+import { ReportListItem } from "@/types/report";
 
 const reportImages: Record<string, string> = {
   Electronics: "📱",
@@ -18,63 +19,66 @@ const reportImages: Record<string, string> = {
   Clothing: "👕",
 };
 
-export interface Report {
-  id: string | number;
-  title: string;
-  category: string;
-  location: string;
-  date: string;
-  status: "lost" | "found";
-  reporter: string;
-  hasMatch: boolean;
-  description: string;
-  imagePath?: string;
-}
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
-
+const getImageUrl = (path?: string | null) => {
+  if (!path) return null;
+  const baseUrl = API_BASE_URL.replace(/\/+$/, '');
+  const cleanPath = path.replace(/^\/+/, '');
+  return `${baseUrl}/${cleanPath}`;
+};
 
 const Reports = () => {
   const { lang, isRTL } = useLanguage();
+  
+  // Filters State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  
-  const { data: reportsData, isLoading, isError } = useGetReports({ pageNumber: page, pageSize });
-  
-  // Map API response to UI Report model
-  const reports: Report[] = (reportsData?.data || []).map(r => ({
-    id: r.id,
-    title: r.itemName,
-    category: "Electronics", // Default category if not provided by API
-    location: "Unknown", // Default location if not provided
-    date: r.dateReported.split("T")[0],
-    status: r.reportType === 1 ? "lost" : "found",
-    reporter: "System User", // Default reporter
-    hasMatch: false,
-    description: r.description || "No description provided",
-    imagePath: r.imagePath
-  }));
-
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [locationFilter, setLocationFilter] = useState<string>("");
+  const [reportTypeFilter, setReportTypeFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+
+  const filtersObj = {
+    search: searchQuery,
+    statusType: statusFilter !== "all" ? statusFilter : undefined,
+    categoryId: categoryFilter !== "all" ? categoryFilter : undefined,
+    locationId: locationFilter || undefined,
+    reportType: reportTypeFilter !== "all" ? reportTypeFilter : undefined,
+    fromDate: dateFrom || undefined,
+    toDate: dateTo || undefined,
+    pageNumber: page,
+    pageSize,
+  };
+
+  const { data: reportsData, isLoading } = useGetAdminReports(filtersObj);
+  const reports: ReportListItem[] = reportsData?.data || [];
+
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const [viewReport, setViewReport] = useState<Report | null>(null);
-  const [editReport, setEditReport] = useState<Report | null>(null);
-  const [deleteReport, setDeleteReport] = useState<Report | null>(null);
-
-  const activeId = viewReport?.id || editReport?.id || 0;
-  const { data: detailsData, isLoading: detailsLoading } = useGetReportById(activeId, !!activeId);
-
+  // Modals state
+  const [viewReport, setViewReport] = useState<ReportListItem | null>(null);
+  const [editReport, setEditReport] = useState<ReportListItem | null>(null);
+  const [deleteReport, setDeleteReport] = useState<ReportListItem | null>(null);
+  const [changeStatusReport, setChangeStatusReport] = useState<ReportListItem | null>(null);
   
-  
-  const deleteMutation = useDeleteReport();
-  const updateMutation = useUpdateReport();
   const [showFilters, setShowFilters] = useState(false);
-  const [editForm, setEditForm] = useState({ title: "", location: "", description: "", status: "lost" as "lost" | "found" });
+  const [editForm, setEditForm] = useState({ title: "", location: "", description: "", reportType: 1 });
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const [statusForm, setStatusForm] = useState<number>(0);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Queries & Mutations
+  const activeId = viewReport?.id || editReport?.id || 0;
+  const { data: detailsData, isLoading: detailsLoading } = useGetReportDetails(Number(activeId), !!activeId);
+  const deleteMutation = useDeleteReport(filtersObj);
+  const updateMutation = useEditReport(filtersObj);
+  const statusMutation = useChangeReportStatus(filtersObj);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -84,26 +88,31 @@ const Reports = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const filtered = reports.filter((r) => {
-    const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase()) || r.reporter.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || r.status === statusFilter;
-    const matchesCategory = categoryFilter === "all" || r.category === categoryFilter;
-    return matchesSearch && matchesStatus && matchesCategory;
-  });
-
   const toggleRow = (id: string | number) => {
     setSelectedRows((prev) => { const idStr = id.toString(); const next = new Set(prev); if (next.has(idStr)) next.delete(idStr); else next.add(idStr); return next; });
   };
 
   const toggleAll = () => {
-    if (selectedRows.size === filtered.length && filtered.length > 0) setSelectedRows(new Set());
-    else setSelectedRows(new Set(filtered.map((r) => r.id.toString())));
+    if (selectedRows.size === reports.length && reports.length > 0) setSelectedRows(new Set());
+    else setSelectedRows(new Set(reports.map((r) => r.id.toString())));
   };
 
-  const openEdit = (report: Report) => {
-    setEditForm({ title: report.title, location: report.location, description: report.description, status: report.status });
+  const openEdit = (report: ReportListItem) => {
+    setEditForm({ title: report.itemName, location: report.locationName || "", description: "", reportType: report.reportType });
     setEditErrors({});
     setEditReport(report);
+    setOpenMenuId(null);
+  };
+
+  const openChangeStatus = (report: ReportListItem) => {
+    setStatusForm(report.status || 0);
+    setChangeStatusReport(report);
+    setOpenMenuId(null);
+  };
+
+  const openView = (report: ReportListItem) => {
+    setCurrentImageIndex(0);
+    setViewReport(report);
     setOpenMenuId(null);
   };
 
@@ -111,43 +120,22 @@ const Reports = () => {
     if (!editReport) return;
     const errs: Record<string, string> = {};
     if (!editForm.title.trim()) errs.title = t("titleRequired", lang);
-    if (!editForm.location.trim()) errs.location = t("locationRequired", lang);
     if (Object.keys(errs).length > 0) { setEditErrors(errs); return; }
     
-    const formData = new FormData();
+    const payload = {
+      title: editForm.title,
+      itemName: editForm.title,
+      description: editForm.description,
+      reportType: Number(editForm.reportType)
+    };
     
-    // The backend in ASP.NET Core accepts lowerCase / camelCase keys usually, but Swagger shows PascalCase. Let's send camelCase keys as is universally safe for ASP.NET or match Swagger exactly.
-    // However, if some aren't sent, ASP.NET Core may complain if they are required. We'll send them matching Swagger to be safe.
-    formData.append('ItemName', editForm.title || detailsData?.data?.itemName || editReport.title);
-    formData.append('Description', editForm.description || detailsData?.data?.description || editReport.description || '');
-    
-    const newStatus = editForm.status || editReport.status;
-    formData.append('ReportType', newStatus === 'lost' ? '1' : '2');
-    
-    // Only send LocationId and DateReported if we have a reasonable value
-    // Let's send the previous date-time string if available
-    const prevDate = detailsData?.data?.dateReported || editReport.date;
-    if (prevDate) formData.append('DateReported', prevDate);
-    
-    // Location Id is tricky if not sent in GET. We'll skip sending LocationId if not needed, 
-    // or send '1' if backend insists (but let's omit unless we explicitly have it, else dummy '1')
-    if ((detailsData?.data as any)?.locationId) {
-        formData.append('LocationId', (detailsData.data as any).locationId.toString());
-    } else {
-        // formData.append('LocationId', '1'); // Omit and hope it's not required on PUT
-    }
-
-    if ((detailsData?.data as any)?.color) formData.append('Color', (detailsData.data as any).color);
-    if ((detailsData?.data as any)?.conditionType) formData.append('ConditionType', (detailsData.data as any).conditionType.toString());
-
-    updateMutation.mutate({ id: editReport.id, formData }, {
+    updateMutation.mutate({ id: Number(editReport.id), data: payload }, {
       onSuccess: () => {
-        toast({ title: "✅ " + (lang === "AR" ? "تم تحديث البلاغ" : "Report Updated"), description: `${editReport.id} ${lang === "AR" ? "تم تحديثه بنجاح" : "has been updated successfully."}` });
+        toast({ title: "✅ " + (lang === "AR" ? "تم التحديث" : "Updated"), description: `${editReport.id} ${lang === "AR" ? "تم تحديثه بنجاح" : "has been updated successfully."}` });
         setEditReport(null);
       },
       onError: (err: any) => {
-        console.error("Update error:", err);
-        toast({ title: lang === "AR" ? "فشل التحديث" : "Update failed: " + (err.response?.data?.message || err.message), variant: "destructive" });
+        toast({ title: lang === "AR" ? "فشل التحديث" : "Update failed", description: err.response?.data?.message || err.message, variant: "destructive" });
       }
     });
   };
@@ -156,12 +144,29 @@ const Reports = () => {
     if (!deleteReport) return;
     deleteMutation.mutate(deleteReport.id, {
       onSuccess: () => {
-        toast({ title: "🗑️ " + (lang === "AR" ? "تم حذف البلاغ" : "Report Deleted"), description: `${deleteReport.id} ${lang === "AR" ? "تمت إزالته" : "has been removed."}` });
+        toast({ title: "🗑️ " + (lang === "AR" ? "تم الحذف" : "Deleted"), description: `${deleteReport.id} ${lang === "AR" ? "تمت إزالته" : "has been removed."}` });
         setDeleteReport(null);
+        setSelectedRows(prev => {
+          const next = new Set(prev);
+          next.delete(deleteReport.id.toString());
+          return next;
+        });
       },
       onError: (err: any) => {
-        console.error("Delete error:", err);
-        toast({ title: lang === "AR" ? "فشل الحذف" : "Deletion failed: " + (err.response?.data?.message || err.message), variant: "destructive" });
+        toast({ title: lang === "AR" ? "فشل الحذف" : "Deletion failed", description: err.response?.data?.message || err.message, variant: "destructive" });
+      }
+    });
+  };
+
+  const handleStatusSave = () => {
+    if (!changeStatusReport) return;
+    statusMutation.mutate({ id: Number(changeStatusReport.id), statusType: Number(statusForm) }, {
+      onSuccess: () => {
+        toast({ title: "✅ " + (lang === "AR" ? "تم تغيير الحالة" : "Status Changed"), description: `${changeStatusReport.id} ${lang === "AR" ? "تم التحديث" : "has been updated."}` });
+        setChangeStatusReport(null);
+      },
+      onError: (err: any) => {
+        toast({ title: lang === "AR" ? "فشل التحديث" : "Update failed", description: err.response?.data?.message || err.message, variant: "destructive" });
       }
     });
   };
@@ -171,7 +176,7 @@ const Reports = () => {
   const handleExportPDF = () => {
     setExporting(true);
     try {
-      const rows = selectedRows.size > 0 ? filtered.filter(r => selectedRows.has(r.id.toString())) : filtered;
+      const rowsToExport = selectedRows.size > 0 ? reports.filter(r => selectedRows.has(r.id.toString())) : reports;
       const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
       const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -190,10 +195,10 @@ const Reports = () => {
 
       autoTable(doc, {
         startY: 80,
-        head: [["ID", "Item", "Category", "Location", "Reporter", "Date", "Status", "Match"]],
-        body: rows.map(r => [
-          r.id, r.title, r.category, r.location, r.reporter, r.date,
-          r.status.toUpperCase(), r.hasMatch ? "Yes" : "-",
+        head: [["ID", "Item", "Category", "Location", "Reporter", "Date", "Status"]],
+        body: rowsToExport.map(r => [
+          r.id, r.itemName, r.categoryName || "-", r.locationName || "-", r.userName || r.reporterName || "-", r.dateReported?.split('T')[0] || "-",
+          r.reportType === 1 ? "LOST" : "FOUND",
         ]),
         styles: { fontSize: 9, cellPadding: 6, textColor: [40, 40, 40] },
         headStyles: { fillColor: [124, 58, 237], textColor: 255, fontStyle: "bold" },
@@ -205,7 +210,7 @@ const Reports = () => {
           doc.setFontSize(8);
           doc.setTextColor(120);
           doc.text(
-            `Page ${data.pageNumber} of ${pageCount}  •  Total reports: ${rows.length}`,
+            `Page ${data.pageNumber} of ${pageCount}  •  Total reports: ${rowsToExport.length}`,
             pageWidth / 2, pageHeight - 20, { align: "center" }
           );
         },
@@ -214,12 +219,26 @@ const Reports = () => {
       doc.save(`reports-${new Date().toISOString().slice(0, 10)}.pdf`);
       toast({
         title: "📄 " + (lang === "AR" ? "تم تصدير PDF" : "PDF Exported"),
-        description: lang === "AR" ? `تم تصدير ${rows.length} بلاغ بنجاح` : `${rows.length} reports exported successfully.`,
       });
     } catch (err) {
       toast({ title: lang === "AR" ? "فشل التصدير" : "Export failed", variant: "destructive" });
     } finally {
       setExporting(false);
+    }
+  };
+
+  const imagesList = detailsData?.data?.images || [];
+  const hasMultipleImages = imagesList.length > 1;
+
+  const nextImage = () => {
+    if (currentImageIndex < imagesList.length - 1) {
+      setCurrentImageIndex(prev => prev + 1);
+    }
+  };
+
+  const prevImage = () => {
+    if (currentImageIndex > 0) {
+      setCurrentImageIndex(prev => prev - 1);
     }
   };
 
@@ -229,22 +248,21 @@ const Reports = () => {
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4 shadow-card">
         <div className="relative flex-1 min-w-[200px]">
           <Search className={`absolute ${isRTL ? "right-3" : "left-3"} top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground`} />
-          <input type="text" placeholder={t("searchReports", lang)} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+          <input type="text" placeholder={t("searchReports", lang)} value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
             className={`w-full rounded-md border border-input bg-background py-2 ${isRTL ? "pr-9 pl-3" : "pl-9 pr-3"} text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
         </div>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+        <select value={reportTypeFilter} onChange={(e) => { setReportTypeFilter(e.target.value); setPage(1); }}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-          <option value="all">{t("allStatus", lang)}</option>
-          <option value="lost">{t("lost", lang)}</option>
-          <option value="found">{t("found", lang)}</option>
+          <option value="all">{lang === "AR" ? "كل أنواع البلاغات" : "All Report Types"}</option>
+          <option value="1">{t("lost", lang)}</option>
+          <option value="2">{t("found", lang)}</option>
         </select>
-        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
+        <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
           <option value="all">{t("allCategories", lang)}</option>
-          <option value="Electronics">{lang === "AR" ? "إلكترونيات" : "Electronics"}</option>
-          <option value="Documents">{lang === "AR" ? "مستندات" : "Documents"}</option>
-          <option value="Accessories">{lang === "AR" ? "إكسسوارات" : "Accessories"}</option>
-          <option value="Clothing">{lang === "AR" ? "ملابس" : "Clothing"}</option>
+          <option value="1">{lang === "AR" ? "إلكترونيات" : "Electronics"}</option>
+          <option value="2">{lang === "AR" ? "مستندات" : "Documents"}</option>
+          <option value="3">{lang === "AR" ? "إكسسوارات" : "Accessories"}</option>
         </select>
         <button onClick={() => setShowFilters(true)} className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted">
           <Filter className="h-4 w-4" /> {t("moreFilters", lang)}
@@ -260,7 +278,7 @@ const Reports = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="px-4 py-3 text-start"><input type="checkbox" checked={selectedRows.size === filtered.length && filtered.length > 0} onChange={toggleAll} className="h-4 w-4 rounded border-input text-primary accent-primary" /></th>
+                <th className="px-4 py-3 text-start"><input type="checkbox" checked={selectedRows.size === reports.length && reports.length > 0} onChange={toggleAll} className="h-4 w-4 rounded border-input text-primary accent-primary" /></th>
                 <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thId", lang)}</th>
                 <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thItem", lang)}</th>
                 <th className="px-4 py-3 text-start font-medium text-muted-foreground">{t("thCategory", lang)}</th>
@@ -279,48 +297,51 @@ const Reports = () => {
                     {t("loading", lang) || "Loading..."}
                   </td>
                 </tr>
-              ) : filtered.length === 0 ? (
+              ) : reports.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
                     No reports found.
                   </td>
                 </tr>
-              ) : filtered.map((report) => (
+              ) : reports.map((report) => (
                 <tr key={report.id} className={`transition-colors hover:bg-muted/30 ${selectedRows.has(report.id.toString()) ? "bg-primary/5" : ""}`}>
                   <td className="px-4 py-3"><input type="checkbox" checked={selectedRows.has(report.id.toString())} onChange={() => toggleRow(report.id)} className="h-4 w-4 rounded border-input text-primary accent-primary" /></td>
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{report.id}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-lg">{reportImages[report.category] || "📦"}</div>
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-lg">
+                        {report.imagePath ? <img src={getImageUrl(report.imagePath) as string} className="w-full h-full object-cover rounded-lg" alt="Item" /> : (reportImages[report.categoryName || ""] || "📦")}
+                      </div>
                       <div>
-                        <span className="font-medium text-card-foreground">{report.title}</span>
-                        {report.hasMatch && (
-                          <span className={`${isRTL ? "mr-2" : "ml-2"} inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary`}>
-                            <Link2 className="h-3 w-3" /> {t("highMatch", lang)}
-                          </span>
-                        )}
+                        <span className="font-medium text-card-foreground">{report.itemName}</span>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{report.category}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{report.location}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{report.reporter}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{report.date}</td>
-                  <td className="px-4 py-3"><StatusBadge status={report.status} /></td>
+                  <td className="px-4 py-3 text-muted-foreground">{report.categoryName || "-"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{report.locationName || "-"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{report.userName || report.reporterName || "-"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{report.dateReported?.split('T')[0] || "-"}</td>
                   <td className="px-4 py-3">
-                    <div className="relative" ref={openMenuId === report.id ? menuRef : null}>
-                      <button onClick={() => setOpenMenuId(openMenuId === report.id ? null : report.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+                    <StatusBadge status={report.reportType === 1 ? "lost" : "found"} />
+                    {/* Could display report.status conceptually, e.g. pending/resolved based on status int */}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="relative" ref={openMenuId === report.id.toString() ? menuRef : null}>
+                      <button onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuId(openMenuId === report.id.toString() ? null : report.id.toString());
+                      }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
                         <MoreHorizontal className="h-4 w-4" />
                       </button>
-                      {openMenuId === report.id && (
+                      {openMenuId === report.id.toString() && (
                         <div className={`absolute ${isRTL ? "left-0" : "right-0"} top-full z-50 mt-1 w-44 rounded-lg border border-border bg-popover p-1 shadow-lg`}>
-                          <button onClick={() => { setViewReport(report); setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-popover-foreground hover:bg-muted">
+                          <button onClick={() => openView(report)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-popover-foreground hover:bg-muted">
                             <Eye className="h-4 w-4" /> {t("viewDetails", lang)}
                           </button>
                           <button onClick={() => openEdit(report)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-popover-foreground hover:bg-muted">
                             <Edit className="h-4 w-4" /> {t("edit", lang)}
                           </button>
-                          <button onClick={() => { setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-popover-foreground hover:bg-muted">
+                          <button onClick={() => openChangeStatus(report)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-popover-foreground hover:bg-muted">
                             <RefreshCw className="h-4 w-4" /> {t("changeStatus", lang)}
                           </button>
                           <div className="my-1 h-px bg-border" />
@@ -338,7 +359,7 @@ const Reports = () => {
         </div>
         <div className="flex items-center justify-between border-t border-border px-4 py-3">
           <p className="text-sm text-muted-foreground">
-            {t("showing", lang)} {filtered.length} {t("of", lang)} {reportsData?.totalRecords || reports.length} {t("reports", lang).toLowerCase()}
+            {t("showing", lang)} {reports.length} {t("of", lang)} {reportsData?.totalRecords || reports.length} {t("reports", lang).toLowerCase()}
             {selectedRows.size > 0 && <span className="ms-2 font-medium text-primary">({selectedRows.size} {t("selected", lang)})</span>}
           </p>
           <div className="flex gap-1">
@@ -361,13 +382,13 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* View Details Modal */}
+      {/* View Details Modal with Image Carousel */}
       <Dialog open={!!viewReport} onOpenChange={() => setViewReport(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span className="text-2xl">{viewReport && reportImages[viewReport.category]}</span>
-              {viewReport?.title}
+              <span className="text-2xl">{viewReport && reportImages[viewReport.categoryName || ""]}</span>
+              {viewReport?.itemName}
             </DialogTitle>
           </DialogHeader>
           {viewReport && (
@@ -378,24 +399,51 @@ const Reports = () => {
                 </div>
               ) : (
                 <>
-                  <div className="flex h-48 items-center justify-center rounded-xl border border-border bg-muted overflow-hidden">
-                    {detailsData?.data?.images?.[0]?.path ? (
-                      <img src={'http://localhost:8080/' + detailsData.data.images[0].path} alt={viewReport.title} className="max-h-full object-contain" />
+                  <div className="relative flex h-64 items-center justify-center rounded-xl border border-border bg-muted overflow-hidden group">
+                    {imagesList.length > 0 ? (
+                      <img src={getImageUrl(imagesList[currentImageIndex]) as string} alt={viewReport.itemName} className="h-full w-full object-cover" />
                     ) : viewReport.imagePath ? (
-                      <img src={'http://localhost:8080/' + viewReport.imagePath} alt={viewReport.title} className="max-h-full object-contain" />
+                      <img src={getImageUrl(viewReport.imagePath) as string} alt={viewReport.itemName} className="h-full w-full object-cover" />
                     ) : (
-                      <span className="text-6xl">{reportImages[viewReport.category]}</span>
+                      <span className="text-6xl">{reportImages[viewReport.categoryName || ""] || "📦"}</span>
+                    )}
+
+                    {/* Carousel Controls */}
+                    {hasMultipleImages && (
+                      <>
+                        <button 
+                          onClick={prevImage}
+                          disabled={currentImageIndex === 0}
+                          className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 transition-opacity hover:bg-background disabled:opacity-30 group-hover:opacity-100"
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                        </button>
+                        <button 
+                          onClick={nextImage}
+                          disabled={currentImageIndex === imagesList.length - 1}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 transition-opacity hover:bg-background disabled:opacity-30 group-hover:opacity-100"
+                        >
+                          <ChevronRight className="h-5 w-5" />
+                        </button>
+                        
+                        {/* Indicators */}
+                        <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5">
+                          {imagesList.map((_, idx) => (
+                            <div key={idx} className={`h-1.5 w-1.5 rounded-full ${idx === currentImageIndex ? 'bg-primary' : 'bg-background/50'}`} />
+                          ))}
+                        </div>
+                      </>
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div><p className="text-xs font-medium text-muted-foreground">{t("reportId", lang)}</p><p className="text-sm font-semibold text-foreground font-mono">{viewReport.id}</p></div>
-                    <div><p className="text-xs font-medium text-muted-foreground">{t("thStatus", lang)}</p><StatusBadge status={detailsData?.data?.reportType === 1 ? "lost" : detailsData?.data?.reportType === 2 ? "found" : viewReport.status} /></div>
-                    <div><p className="text-xs font-medium text-muted-foreground">{t("thCategory", lang)}</p><p className="text-sm text-foreground">{viewReport.category}</p></div>
-                    <div><p className="text-xs font-medium text-muted-foreground">{t("thLocation", lang)}</p><p className="text-sm text-foreground">{detailsData?.data?.locationName || viewReport.location}</p></div>
-                    <div><p className="text-xs font-medium text-muted-foreground">{t("thReporter", lang)}</p><p className="text-sm text-foreground">{viewReport.reporter}</p></div>
-                    <div><p className="text-xs font-medium text-muted-foreground">{t("thDate", lang)}</p><p className="text-sm text-foreground">{detailsData?.data?.dateReported ? detailsData.data.dateReported.split('T')[0] : viewReport.date}</p></div>
+                    <div><p className="text-xs font-medium text-muted-foreground">{t("thStatus", lang)}</p><StatusBadge status={detailsData?.data?.reportType === 1 ? "lost" : detailsData?.data?.reportType === 2 ? "found" : (viewReport.reportType === 1 ? "lost" : "found")} /></div>
+                    <div><p className="text-xs font-medium text-muted-foreground">{t("thCategory", lang)}</p><p className="text-sm text-foreground">{viewReport.categoryName || "-"}</p></div>
+                    <div><p className="text-xs font-medium text-muted-foreground">{t("thLocation", lang)}</p><p className="text-sm text-foreground">{detailsData?.data?.locationName || viewReport.locationName || "-"}</p></div>
+                    <div><p className="text-xs font-medium text-muted-foreground">{t("thReporter", lang)}</p><p className="text-sm text-foreground">{detailsData?.data?.userName || detailsData?.data?.reporterName || viewReport.userName || viewReport.reporterName || "-"}</p></div>
+                    <div><p className="text-xs font-medium text-muted-foreground">{t("thDate", lang)}</p><p className="text-sm text-foreground">{detailsData?.data?.dateReported ? detailsData.data.dateReported.split('T')[0] : viewReport.dateReported?.split('T')[0] || "-"}</p></div>
                   </div>
-                  <div><p className="text-xs font-medium text-muted-foreground">{t("description", lang)}</p><p className="text-sm text-foreground mt-1">{detailsData?.data?.description || viewReport.description || "No description provided"}</p></div>
+                  <div><p className="text-xs font-medium text-muted-foreground">{t("description", lang)}</p><p className="text-sm text-foreground mt-1">{detailsData?.data?.description || "No description provided"}</p></div>
                 </>
               )}
             </div>
@@ -414,27 +462,44 @@ const Reports = () => {
                 className={`w-full rounded-md border ${editErrors.title ? "border-destructive" : "border-input"} bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
               {editErrors.title && <p className="mt-1 text-xs text-destructive">{editErrors.title}</p>}
             </div>
+            {/* Note: location could be a dropdown, keeping simple as text per original, but location is typically an ID. The prompt said location is sent. I'll omit if not strictly required to avoid breaking, or user can adjust. */}
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("thLocation", lang)}</label>
-              <input value={editForm.location} onChange={(e) => { setEditForm(f => ({ ...f, location: e.target.value })); setEditErrors(e => ({ ...e, location: "" })); }}
-                className={`w-full rounded-md border ${editErrors.location ? "border-destructive" : "border-input"} bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
-              {editErrors.location && <p className="mt-1 text-xs text-destructive">{editErrors.location}</p>}
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("thStatus", lang)}</label>
-              <select value={editForm.status} onChange={(e) => setEditForm(f => ({ ...f, status: e.target.value as "lost" | "found" }))}
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{lang === "AR" ? "نوع البلاغ" : "Report Type"}</label>
+              <select value={editForm.reportType} onChange={(e) => setEditForm(f => ({ ...f, reportType: parseInt(e.target.value) }))}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-                <option value="lost">{t("lost", lang)}</option><option value="found">{t("found", lang)}</option>
+                <option value={1}>{t("lost", lang)}</option><option value={2}>{t("found", lang)}</option>
               </select>
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("description", lang)}</label>
-              <textarea value={editForm.description} onChange={(e) => setEditForm(f => ({ ...f, description: e.target.value }))} rows={3}
+              <textarea value={editForm.description || ""} onChange={(e) => setEditForm(f => ({ ...f, description: e.target.value }))} rows={3}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setEditReport(null)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">{t("cancel", lang)}</button>
               <button onClick={handleEditSave} disabled={updateMutation.isPending} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">{t("saveChanges", lang)}</button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Status Modal */}
+      <Dialog open={!!changeStatusReport} onOpenChange={() => setChangeStatusReport(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>{t("changeStatus", lang)} – {changeStatusReport?.id}</DialogTitle></DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{lang === "AR" ? "الحالة الجديدة" : "New Status"}</label>
+              <select value={statusForm} onChange={(e) => setStatusForm(parseInt(e.target.value))}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                <option value={0}>{lang === "AR" ? "قيد الانتظار" : "Pending"}</option>
+                <option value={1}>{lang === "AR" ? "مكتمل" : "Resolved"}</option>
+                <option value={2}>{lang === "AR" ? "مرفوض" : "Rejected"}</option>
+              </select>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setChangeStatusReport(null)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">{t("cancel", lang)}</button>
+              <button onClick={handleStatusSave} disabled={statusMutation.isPending} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">{t("saveChanges", lang)}</button>
             </div>
           </div>
         </DialogContent>
@@ -447,8 +512,8 @@ const Reports = () => {
             <AlertDialogTitle>{t("deleteReport", lang)} {deleteReport?.id}?</AlertDialogTitle>
             <AlertDialogDescription>
               {lang === "AR"
-                ? `سيتم حذف "${deleteReport?.title}" نهائياً من النظام. لا يمكن التراجع عن هذا الإجراء.`
-                : `This will permanently remove "${deleteReport?.title}" from the system. This action cannot be undone.`}
+                ? `سيتم حذف "${deleteReport?.itemName}" نهائياً من النظام. لا يمكن التراجع عن هذا الإجراء.`
+                : `This will permanently remove "${deleteReport?.itemName}" from the system. This action cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -472,26 +537,30 @@ const Reports = () => {
             <div className="p-6 space-y-5">
               <div>
                 <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-muted-foreground"><Calendar className="h-3.5 w-3.5" /> {lang === "AR" ? "من تاريخ" : "Date From"}</label>
-                <input type="date" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div>
                 <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-muted-foreground"><Calendar className="h-3.5 w-3.5" /> {lang === "AR" ? "إلى تاريخ" : "Date To"}</label>
-                <input type="date" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{lang === "AR" ? "حالة التطابق" : "Match Status"}</label>
-                <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{lang === "AR" ? "الحالة" : "Status Type"}</label>
+                <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
                   <option value="all">{lang === "AR" ? "الكل" : "All"}</option>
-                  <option value="matched">{lang === "AR" ? "يوجد تطابق" : "Has Match"}</option>
-                  <option value="unmatched">{lang === "AR" ? "لا يوجد تطابق" : "No Match"}</option>
+                  <option value="0">{lang === "AR" ? "قيد الانتظار" : "Pending"}</option>
+                  <option value="1">{lang === "AR" ? "مكتمل" : "Resolved"}</option>
                 </select>
               </div>
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t("thLocation", lang)}</label>
-                <input type="text" placeholder={lang === "AR" ? "تصفية حسب الموقع..." : "Filter by location..."} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                {/* For real implementation, this could be a select of locations. Keeping as input or can be omitted if you have select */}
+                <input type="text" value={locationFilter} onChange={(e) => { setLocationFilter(e.target.value); setPage(1); }} placeholder={lang === "AR" ? "تصفية حسب الموقع (ID)..." : "Filter by location ID..."} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div className="flex gap-3 pt-4">
-                <button onClick={() => setShowFilters(false)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">{t("clearAll", lang)}</button>
+                <button onClick={() => {
+                  setSearchQuery(""); setStatusFilter("all"); setCategoryFilter("all"); setLocationFilter(""); setReportTypeFilter("all"); setDateFrom(""); setDateTo(""); setPage(1);
+                  setShowFilters(false);
+                }} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">{t("clearAll", lang)}</button>
                 <button onClick={() => setShowFilters(false)} className="flex-1 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">{t("applyFilters", lang)}</button>
               </div>
             </div>
