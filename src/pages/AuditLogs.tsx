@@ -1,16 +1,19 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Search, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Download, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { t } from "@/lib/i18n";
 import { useGetAuditLogs } from "@/hooks/useAuditLogs";
+import { auditLogsApi } from "@/lib/api/endpoints/auditLogs";
 import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 
 const AuditLogs = () => {
   const { lang, isRTL } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
+  const [exporting, setExporting] = useState(false);
   
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
@@ -24,6 +27,33 @@ const AuditLogs = () => {
   const totalPages = data?.totalPages || 1;
   const totalRecords = data?.totalRecords || 0;
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      // Option A: Backend Export
+      const blob = await auditLogsApi.exportAuditLogs();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "audit_logs.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "✅ " + t("exportComplete", lang), description: "Audit logs exported." });
+    } catch (error) {
+      // Option B: Client-side CSV Fallback
+      console.warn("Backend export failed, falling back to client-side CSV", error);
+      const csv = "Timestamp,Admin,Action,Target,IP Address\n" + logs.map(l => `"${l.timestamp}","${l.adminName}","${l.action}","${l.target}","${l.ipAddress}"`).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "audit_logs_fallback.csv"; a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "✅ " + t("exportComplete", lang), description: "Audit logs exported." });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <DashboardLayout title={t("auditLogs", lang)} subtitle={t("auditLogsSubtitle", lang)}>
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4 shadow-card">
@@ -32,8 +62,12 @@ const AuditLogs = () => {
           <input type="text" placeholder={t("searchLogs", lang)} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
             className={`w-full rounded-md border border-input bg-background py-2 ${isRTL ? "pr-9 pl-3" : "pl-9 pr-3"} text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring`} />
         </div>
-        <button className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted">
-          <Download className="h-4 w-4" /> {t("exportLogs", lang)}
+        <button 
+          onClick={handleExport} 
+          disabled={exporting}
+          className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
+        >
+          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} {t("exportLogs", lang)}
         </button>
       </div>
 

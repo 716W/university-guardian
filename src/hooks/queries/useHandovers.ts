@@ -11,8 +11,8 @@ export const useCreateHandover = () => {
     return useMutation({
         mutationFn: (formData: FormData) => createHandover(formData),
         onSuccess: (_, variables) => {
-            const reportId = variables.get('reportId');
-            const claimId = variables.get('claimId');
+            const reportId = variables.get('reportId') || variables.get('ReportId');
+            const claimId = variables.get('claimId') || variables.get('ClaimId');
 
             if (reportId) {
                 // Update all adminReports queries in the cache

@@ -67,8 +67,16 @@ export function AppSidebar() {
 
   const userInitials = profile?.name 
     ? profile.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() 
-    : "AM";
-  const displayRole = "System Admin"; // Fallback as requested
+    : "U";
+  const displayRole = role || "User";
+
+  const getAvatarUrl = (url: string | null | undefined) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+    return `${baseUrl.replace(/\/$/, '')}/${url.replace(/^\//, '')}`;
+  };
+  const resolvedAvatarUrl = getAvatarUrl(profile?.avatarUrl);
 
   return (
     <aside
@@ -84,10 +92,10 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="flex flex-col overflow-hidden">
             <span className="truncate text-sm font-bold text-white">
-              {t("hadramoutUniv", lang)}
+              {lang === "AR" ? "بوابة الأصول" : "HU Asset Gateway"}
             </span>
             <span className="truncate text-[11px] text-white/40">
-              {t("lostAndFound", lang)}
+              {lang === "AR" ? "نظام الإدارة المركزي" : "Central Management System"}
             </span>
           </div>
         )}
@@ -156,8 +164,8 @@ export function AppSidebar() {
       <div className={`border-t border-white/[0.08] px-3 py-3 ${collapsed ? "flex justify-center" : ""}`}>
         {collapsed ? (
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-white overflow-hidden">
-            {profile?.avatarUrl ? (
-              <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+            {resolvedAvatarUrl ? (
+              <img src={resolvedAvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
               userInitials
             )}
@@ -165,14 +173,14 @@ export function AppSidebar() {
         ) : (
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-white overflow-hidden">
-              {profile?.avatarUrl ? (
-                <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              {resolvedAvatarUrl ? (
+                <img src={resolvedAvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 userInitials
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="truncate text-sm font-semibold text-white">{profile?.name || t("adminManager", lang)}</p>
+              <p className="truncate text-sm font-semibold text-white">{profile?.name || "User"}</p>
               <p className="truncate text-[11px] text-white/40">{displayRole}</p>
             </div>
             <button

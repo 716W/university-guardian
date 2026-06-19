@@ -78,3 +78,11 @@ export const resetUserPassword = async (
   );
   return data;
 };
+
+// GET /api/v1/admin/users/export
+export const exportUsers = async (): Promise<Blob> => {
+  const { data } = await apiClient.get<Blob>('/api/v1/admin/users/export', {
+    responseType: 'blob',
+  });
+  return data;
+};

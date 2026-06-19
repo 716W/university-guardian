@@ -17,6 +17,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGetProfile, useLogout } from "@/hooks/queries/useAuth";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -35,11 +36,20 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
 
   const { data: profile } = useGetProfile();
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
+  const role = useAuthStore(state => state.role);
 
   const userInitials = profile?.name 
     ? profile.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() 
-    : "AM";
-  const displayRole = "System Admin"; // Fallback as requested
+    : "U";
+  const displayRole = role || "User";
+
+  const getAvatarUrl = (url: string | null | undefined) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+    return `${baseUrl.replace(/\/$/, '')}/${url.replace(/^\//, '')}`;
+  };
+  const resolvedAvatarUrl = getAvatarUrl(profile?.avatarUrl);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -128,14 +138,14 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
                 className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted transition-colors"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground overflow-hidden">
-                  {profile?.avatarUrl ? (
-                    <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  {resolvedAvatarUrl ? (
+                    <img src={resolvedAvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
                     userInitials
                   )}
                 </div>
                 <div className="hidden md:block text-start">
-                  <p className="text-sm font-semibold text-foreground leading-tight">{profile?.name || t("adminManager", lang)}</p>
+                  <p className="text-sm font-semibold text-foreground leading-tight">{profile?.name || "User"}</p>
                   <p className="text-[11px] text-muted-foreground leading-tight">{displayRole}</p>
                 </div>
                 <ChevronDown className="h-4 w-4 text-muted-foreground hidden md:block" />

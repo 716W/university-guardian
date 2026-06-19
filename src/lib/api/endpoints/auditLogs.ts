@@ -12,5 +12,11 @@ export const auditLogsApi = {
             }
         });
         return response.data;
+    },
+    exportAuditLogs: async (): Promise<Blob> => {
+        const response = await apiClient.get<Blob>(`/api/v1/admin/audit-logs/export`, {
+            responseType: 'blob'
+        });
+        return response.data;
     }
 };

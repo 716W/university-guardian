@@ -7,6 +7,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { t } from "@/lib/i18n";
+import { useDebounce } from "@/hooks/use-debounce";
+import { exportUsers } from "@/lib/api/endpoints/users";
 import { useGetUsers, useAddUser, useUpdateUser, useChangeRole, useToggleBanUser, useResetPasswordUser } from "@/hooks/queries/useUsers";
 import { USER_ROLES } from "@/types/user";
 import type { User } from "@/types/user";
@@ -20,7 +22,7 @@ const getRoleBadge = (roles?: string[]) => {
 const UsersPage = () => {
   const { lang, isRTL } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 500);
   const [roleFilter, setRoleFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -41,12 +43,8 @@ const UsersPage = () => {
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-      setPage(1); // reset to page 1 on search
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+    setPage(1); // reset to page 1 on search
+  }, [debouncedSearch]);
 
   useEffect(() => {
     setPage(1); // reset to page 1 on filter change
@@ -71,18 +69,31 @@ const UsersPage = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handleExport = () => {
+  const handleExport = async () => {
     setExporting(true);
-    setTimeout(() => {
-      setExporting(false);
+    try {
+      // Option A: Backend Export
+      const blob = await exportUsers();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "users_export.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "✅ " + t("exportComplete", lang), description: t("usersExported", lang) });
+    } catch (error) {
+      // Option B: Client-side CSV Fallback
+      console.warn("Backend export failed, falling back to client-side CSV", error);
       const csv = "ID,Name,Email,Role,Status,Joined\n" + users.map(u => `${u.id},${u.name},${u.email},${u.roles?.join(" ")},${u.isActive},${u.created}`).join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = "users_export.csv"; a.click();
+      a.href = url; a.download = "users_export_fallback.csv"; a.click();
       URL.revokeObjectURL(url);
       toast({ title: "✅ " + t("exportComplete", lang), description: t("usersExported", lang) });
-    }, 1500);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const openEditUser = (user: User) => {
@@ -246,10 +257,14 @@ const UsersPage = () => {
                           <button onClick={() => { setChangeRoleUser(user); setNewRole(user.roles?.[0] || "User"); setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-popover-foreground hover:bg-muted">
                             <KeyRound className="h-4 w-4" /> {t("changeRole", lang)}
                           </button>
-                          <div className="my-1 h-px bg-border" />
-                          <button onClick={() => { setBanUser(user); setOpenMenuId(null); }} className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${user.isActive ? 'text-destructive hover:bg-destructive/10' : 'text-green-600 hover:bg-green-50'}`}>
-                            <Ban className="h-4 w-4" /> {user.isActive ? t("banUser", lang) : (lang === "AR" ? "رفع الحظر" : "Unban User")}
-                          </button>
+                          {user.roles?.[0] !== 'SuperAdmin' && (
+                            <>
+                              <div className="my-1 h-px bg-border" />
+                              <button onClick={() => { setBanUser(user); setOpenMenuId(null); }} className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${user.isActive ? 'text-destructive hover:bg-destructive/10' : 'text-green-600 hover:bg-green-50'}`}>
+                                <Ban className="h-4 w-4" /> {user.isActive ? t("banUser", lang) : (lang === "AR" ? "رفع الحظر" : "Unban User")}
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -318,17 +333,19 @@ const UsersPage = () => {
                     {resetPasswordMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                     <KeyRound className="h-4 w-4" /> {t("resetPassword", lang)}
                   </button>
-                  <button
-                    onClick={() => {
-                      const target = selectedUser;
-                      setSelectedUser(null);
-                      setBanUser(target);
-                    }}
-                    disabled={toggleBanMutation.isPending}
-                    className={`flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${selectedUser.isActive ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : 'bg-green-600 text-white hover:bg-green-700'}`}
-                  >
-                    <Ban className="h-4 w-4" /> {selectedUser.isActive ? t("permanentlyBan", lang) : (lang === "AR" ? "رفع الحظر" : "Unban User")}
-                  </button>
+                  {selectedUser.roles?.[0] !== 'SuperAdmin' && (
+                    <button
+                      onClick={() => {
+                        const target = selectedUser;
+                        setSelectedUser(null);
+                        setBanUser(target);
+                      }}
+                      disabled={toggleBanMutation.isPending}
+                      className={`flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${selectedUser.isActive ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                    >
+                      <Ban className="h-4 w-4" /> {selectedUser.isActive ? t("permanentlyBan", lang) : (lang === "AR" ? "رفع الحظر" : "Unban User")}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -419,15 +436,23 @@ const UsersPage = () => {
           <DialogHeader><DialogTitle>{t("changeRole", lang)}</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-2">
             <p className="text-sm text-muted-foreground">{lang === "AR" ? "تحديث الدور لـ" : "Update role for"} <span className="font-medium text-foreground">{changeRoleUser?.name}</span></p>
-            <select value={newRole} onChange={(e) => setNewRole(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+            <select 
+              value={newRole} 
+              onChange={(e) => setNewRole(e.target.value)}
+              disabled={changeRoleUser?.roles?.[0] === 'SuperAdmin'}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed">
               {USER_ROLES.map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
+            {changeRoleUser?.roles?.[0] === 'SuperAdmin' && (
+              <p className="text-xs text-muted-foreground">
+                {lang === "AR" ? "لا يمكن تعديل صلاحيات مدير النظام." : "Super Admin privileges cannot be modified."}
+              </p>
+            )}
             <div className="flex gap-3">
               <button onClick={() => setChangeRoleUser(null)} className="flex-1 rounded-md border border-input bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted">{t("cancel", lang)}</button>
-              <button onClick={handleChangeRole} disabled={changeRoleMutation.isPending} className="flex-1 flex items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+              <button onClick={handleChangeRole} disabled={changeRoleMutation.isPending || changeRoleUser?.roles?.[0] === 'SuperAdmin'} className="flex-1 flex items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
                 {changeRoleMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 {t("updateRole", lang)}
               </button>

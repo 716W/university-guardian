@@ -1,10 +1,11 @@
 export interface Feedback {
     id: number;
-    from: string;
-    email: string;
+    userName: string;
+    userEmail: string;
     subject: string;
     message: string;
     rating: number;
-    date: string;
-    replied: boolean;
+    createdAt: string;
+    isReplied: boolean;
+    adminReply?: string;
 }

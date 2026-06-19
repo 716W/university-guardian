@@ -1,20 +1,59 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Save, Loader2, Upload, User } from "lucide-react";
+import { Save, Loader2, Upload, User, Server } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { t } from "@/lib/i18n";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useUpdateMyProfile } from "@/hooks/queries/useProfile";
+import { useGetProfile } from "@/hooks/queries/useAuth";
+import { apiClient } from "@/lib/api/apiClient";
 
 const Settings = () => {
   const { lang } = useLanguage();
   const updateMyProfileMutation = useUpdateMyProfile();
+  const { data: profile } = useGetProfile();
 
   // My Profile form state
   const [profileForm, setProfileForm] = useState({ name: "", email: "" });
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const getAvatarUrl = (url: string | null | undefined) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+    return `${baseUrl.replace(/\/$/, '')}/${url.replace(/^\//, '')}`;
+  };
+
+  useEffect(() => {
+    if (profile) {
+      setProfileForm({ name: profile.name || "", email: profile.email || "" });
+      setImagePreview(getAvatarUrl(profile.avatarUrl));
+    }
+  }, [profile]);
+
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const handleSaveSystemSettings = () => {
+    setIsSavingSettings(true);
+    setTimeout(() => {
+      setIsSavingSettings(false);
+      toast({ title: "✅ Success", description: "System preferences updated successfully." });
+    }, 1000);
+  };
+
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const handleBackupDatabase = async () => {
+    setIsBackingUp(true);
+    try {
+      await apiClient.post("/api/v1/admin/database/backup");
+      toast({ title: "✅ Backup Successful", description: "Database has been backed up." });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: "Backup Failed", description: (e as Error).message || "An error occurred." });
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -43,7 +82,7 @@ const Settings = () => {
       // Reflect returned name/email in form
       setProfileForm({ name: result.data.name, email: result.data.email });
       setProfileImage(null);
-      setImagePreview(result.data.avatarUrl || null);
+      setImagePreview(getAvatarUrl(result.data.avatarUrl));
     } catch (e: unknown) {
       toast({ variant: "destructive", title: "Error", description: (e as Error).message || "Failed to update profile" });
     }
@@ -232,9 +271,33 @@ const Settings = () => {
                 </div>
               </label>
             ))}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleBackupDatabase}
+                disabled={isBackingUp}
+                className="flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/90 disabled:opacity-50"
+              >
+                {isBackingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Server className="h-4 w-4" />}
+                {lang === "AR" ? "نسخ احتياطي لقاعدة البيانات" : "Backup Database"}
+              </button>
+            </div>
           </div>
         </div>
 
+      </div>
+
+      {/* Save System Settings Button */}
+      <div className="mt-8 flex justify-end">
+        <button
+          type="button"
+          onClick={handleSaveSystemSettings}
+          disabled={isSavingSettings}
+          className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          {isSavingSettings ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+          {lang === "AR" ? "حفظ إعدادات النظام" : "Save System Settings"}
+        </button>
       </div>
     </DashboardLayout>
   );

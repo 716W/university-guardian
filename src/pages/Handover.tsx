@@ -115,8 +115,7 @@ const Handover = () => {
   const { data: claimsData, isLoading: isLoadingClaims } = useGetAdminClaims({ PageNumber: 1, PageSize: 100 });
   const claims = claimsData?.data || [];
   
-  // Pending or Found reports usually handed over -> Now we use Claims
-  const eligibleClaims = claims.filter(c => c.approvalStatus === 1); // Assuming 1 is Approved
+  const readyForHandoverClaims = claims.filter(claim => claim.approvalStatus === 2) || [];
   
   const { mutate: createHandover, isPending } = useCreateHandover();
 
@@ -130,14 +129,14 @@ const Handover = () => {
   
   const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
   
-  const currentItem = eligibleClaims.find((i) => i.id.toString() === selectedClaimId);
+  const currentItem = readyForHandoverClaims.find((i) => i.id.toString() === selectedClaimId);
 
   // Set default selection when claims load
   useEffect(() => {
-    if (eligibleClaims.length > 0 && !selectedClaimId) {
-        setSelectedClaimId(eligibleClaims[0].id.toString());
+    if (readyForHandoverClaims.length > 0 && !selectedClaimId) {
+        setSelectedClaimId(readyForHandoverClaims[0].id.toString());
     }
-  }, [eligibleClaims, selectedClaimId]);
+  }, [readyForHandoverClaims, selectedClaimId]);
 
   const handleSubmit = async () => {
     if (!selectedClaimId || !idNumber) {
@@ -216,13 +215,21 @@ const Handover = () => {
               <select 
                 value={selectedClaimId} 
                 onChange={(e) => setSelectedClaimId(e.target.value)}
-                disabled={isLoadingClaims}
+                disabled={isLoadingClaims || readyForHandoverClaims.length === 0}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
               >
-                <option value="" disabled>{lang === "AR" ? "اختر مطالبة..." : "Select a claim..."}</option>
-                {eligibleClaims.map((opt) => (
-                  <option key={opt.id} value={opt.id}>{opt.claimCode} – {opt.itemName}</option>
-                ))}
+                {readyForHandoverClaims.length === 0 ? (
+                  <option value="" disabled>
+                    {lang === "AR" ? "لا توجد مطالبات معتمدة بانتظار التسليم." : "No approved claims pending handover."}
+                  </option>
+                ) : (
+                  <>
+                    <option value="" disabled>{lang === "AR" ? "اختر مطالبة..." : "Select a claim..."}</option>
+                    {readyForHandoverClaims.map((opt) => (
+                      <option key={opt.id} value={opt.id}>{opt.claimCode} – {opt.itemName}</option>
+                    ))}
+                  </>
+                )}
               </select>
             </div>
             
@@ -244,10 +251,9 @@ const Handover = () => {
                   onChange={(e) => setIdType(e.target.value)}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="1">{t("studentIdOption", lang)}</option>
-                  <option value="2">{t("nationalId", lang)}</option>
-                  <option value="3">{t("passport", lang)}</option>
-                  <option value="4">{t("employeeBadge", lang)}</option>
+                  <option value="1">{lang === "AR" ? "بطاقة شخصية" : "National ID"}</option>
+                  <option value="2">{lang === "AR" ? "جواز سفر" : "Passport"}</option>
+                  <option value="3">{lang === "AR" ? "بطاقة جامعية" : "University ID"}</option>
                 </select>
               </div>
               <div>
