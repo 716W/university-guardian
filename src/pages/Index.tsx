@@ -4,7 +4,9 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useLanguage } from "@/hooks/use-language";
 import { t } from "@/lib/i18n";
 import { useGetDashboardData } from "@/hooks/queries/useDashboard";
+import { useGetAdminReports } from "@/hooks/queries/useReports";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMemo } from "react";
 import {
   FileText,
   ShieldCheck,
@@ -29,6 +31,47 @@ const Index = () => {
   const { lang, isRTL } = useLanguage();
 
   const { data: dashboardData, isLoading, isError, error } = useGetDashboardData();
+  const { data: reportsData } = useGetAdminReports({ pageSize: 100 });
+
+  const dynamicWeeklyData = useMemo(() => {
+    const realReports = reportsData?.data || [];
+    
+    // Initialize the week array
+    const weekData = [
+      { name: 'Sun', count: 0 },
+      { name: 'Mon', count: 0 },
+      { name: 'Tue', count: 0 },
+      { name: 'Wed', count: 0 },
+      { name: 'Thu', count: 0 },
+      { name: 'Fri', count: 0 },
+      { name: 'Sat', count: 0 },
+    ];
+
+    if (!realReports.length) {
+      // Return a default empty week, but start with Monday
+      return [...weekData.slice(1), weekData[0]];
+    }
+
+    const now = new Date();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(now.getDate() - 7);
+
+    realReports.forEach(report => {
+      if (!report.dateReported) return;
+      
+      const reportDate = new Date(report.dateReported);
+      // Optional: only count if it's within the last 7 days
+      if (reportDate >= sevenDaysAgo && reportDate <= now) {
+        const dayIndex = reportDate.getDay();
+        if (!isNaN(dayIndex) && dayIndex >= 0 && dayIndex <= 6) {
+          weekData[dayIndex].count += 1;
+        }
+      }
+    });
+
+    // Shift to make Monday the first day
+    return [...weekData.slice(1), weekData[0]];
+  }, [reportsData]);
 
   if (isLoading) {
     return (
@@ -67,12 +110,6 @@ const Index = () => {
     name: cat.categoryName,
     value: cat.count,
     color: colors[idx % colors.length]
-  })) || [];
-
-  const dynamicWeeklyData = dashboardData?.weeklyActivity?.map(day => ({
-    day: day.day, // Note: You might need localization here depending on backend response
-    lost: day.lostCount,
-    found: day.foundCount
   })) || [];
 
   const dynamicRecentActivity = dashboardData?.recentActivity || [];
@@ -141,11 +178,10 @@ const Index = () => {
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={dynamicWeeklyData} barGap={4}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(250, 10%, 90%)" />
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "hsl(240, 5%, 46%)", fontSize: 12 }} reversed={isRTL} />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "hsl(240, 5%, 46%)", fontSize: 12 }} reversed={isRTL} />
               <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(240, 5%, 46%)", fontSize: 12 }} orientation={isRTL ? "right" : "left"} />
               <Tooltip contentStyle={{ borderRadius: "10px", border: "1px solid hsl(250, 10%, 90%)", fontSize: "13px" }} />
-              <Bar dataKey="lost" fill="hsl(0, 72%, 51%)" radius={[6, 6, 0, 0]} name={t("lost", lang)} />
-              <Bar dataKey="found" fill="hsl(142, 71%, 45%)" radius={[6, 6, 0, 0]} name={t("found", lang)} />
+              <Bar dataKey="count" fill="hsl(263, 70%, 50%)" radius={[6, 6, 0, 0]} name={t("reports", lang)} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -167,7 +203,7 @@ const Index = () => {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <StatusBadge status={activity.status as any} />
+                <StatusBadge status={activity.status as React.ComponentProps<typeof StatusBadge>["status"]} />
                 <span className="text-xs text-muted-foreground whitespace-nowrap">{activity.timeAgo}</span>
               </div>
             </div>

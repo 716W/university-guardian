@@ -11,9 +11,10 @@ export const useGetFeedbacks = (pendingOnly?: boolean) => {
 export const useReplyToFeedback = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, replyText }: { id: number; replyText: string }) => feedbacksApi.replyToFeedback(id, replyText),
+        mutationFn: ({ id, adminReply }: { id: number; adminReply: string }) => feedbacksApi.replyToFeedback(id, adminReply),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['feedbacks'] });
+            queryClient.invalidateQueries({ queryKey: ['adminFeedbacks'] });
         },
     });
 };

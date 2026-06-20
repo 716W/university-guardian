@@ -227,18 +227,60 @@ const Reports = () => {
     }
   };
 
-  const imagesList = detailsData?.data?.images || [];
+  // ── Safe image parsing ────────────────────────────────────────────────────
+  // Backend returns: { id: number; path: string }[]  (actual Swagger shape).
+  // Guard against legacy shapes: plain string[], comma-separated string, or undefined.
+  const imagesList: string[] = (() => {
+    try {
+      const raw = detailsData?.data?.images;
+      if (Array.isArray(raw) && raw.length > 0) {
+        return raw
+          .map(v => {
+            // ✅ Actual backend shape: { id, path }
+            if (v && typeof v === 'object' && 'path' in v && typeof (v as { path: unknown }).path === 'string') {
+              return ((v as { path: string }).path).trim();
+            }
+            // Legacy / alternative shape: plain string element
+            if (typeof v === 'string') return v.trim();
+            return '';
+          })
+          .filter(Boolean);
+      }
+      // Legacy: images returned as a single comma-separated string
+      if (typeof raw === 'string' && raw.trim() !== '') {
+        return raw.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      // Last resort: use imagePath field from detail payload or list item
+      const fallbackPath = (detailsData?.data as { imagePath?: string } | undefined)?.imagePath ?? viewReport?.imagePath;
+      if (typeof fallbackPath === 'string' && fallbackPath.trim() !== '') {
+        return fallbackPath.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  })();
+
   const hasMultipleImages = imagesList.length > 1;
 
   const nextImage = () => {
-    if (currentImageIndex < imagesList.length - 1) {
-      setCurrentImageIndex(prev => prev + 1);
-    }
+    setCurrentImageIndex(prev => (prev < imagesList.length - 1 ? prev + 1 : prev));
   };
 
   const prevImage = () => {
-    if (currentImageIndex > 0) {
-      setCurrentImageIndex(prev => prev - 1);
+    setCurrentImageIndex(prev => (prev > 0 ? prev - 1 : 0));
+  };
+
+  // Resolve a potentially-relative image path to an absolute URL
+  const resolveImageUrl = (path: string): string => {
+    try {
+      if (!path || path.trim() === '') return '';
+      if (path.startsWith('http://') || path.startsWith('https://')) return path;
+      const baseUrl = API_BASE_URL.replace(/\/+$/, '');
+      const cleanPath = path.replace(/^\/+/, '');
+      return `${baseUrl}/${cleanPath}`;
+    } catch {
+      return '';
     }
   };
 
@@ -399,38 +441,58 @@ const Reports = () => {
                 </div>
               ) : (
                 <>
+                  {/* ── Image Slider ──────────────────────────────────────── */}
                   <div className="relative flex h-64 items-center justify-center rounded-xl border border-border bg-muted overflow-hidden group">
                     {imagesList.length > 0 ? (
-                      <img src={getImageUrl(imagesList[currentImageIndex]) as string} alt={viewReport.itemName} className="h-full w-full object-cover" />
-                    ) : viewReport.imagePath ? (
-                      <img src={getImageUrl(viewReport.imagePath) as string} alt={viewReport.itemName} className="h-full w-full object-cover" />
+                      <img
+                        key={currentImageIndex}
+                        src={resolveImageUrl(imagesList[currentImageIndex] ?? '')}
+                        alt={viewReport?.itemName ?? 'Report image'}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          // Hide broken image and show fallback emoji instead
+                          (e.currentTarget as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
                     ) : (
-                      <span className="text-6xl">{reportImages[viewReport.categoryName || ""] || "📦"}</span>
+                      <span className="text-6xl">{reportImages[viewReport?.categoryName ?? ''] ?? '📦'}</span>
                     )}
 
-                    {/* Carousel Controls */}
+                    {/* Prev / Next arrows — only rendered when there are multiple images */}
                     {hasMultipleImages && (
                       <>
-                        <button 
+                        <button
                           onClick={prevImage}
                           disabled={currentImageIndex === 0}
+                          aria-label="Previous image"
                           className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 transition-opacity hover:bg-background disabled:opacity-30 group-hover:opacity-100"
                         >
                           <ChevronLeft className="h-5 w-5" />
                         </button>
-                        <button 
+                        <button
                           onClick={nextImage}
                           disabled={currentImageIndex === imagesList.length - 1}
+                          aria-label="Next image"
                           className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 transition-opacity hover:bg-background disabled:opacity-30 group-hover:opacity-100"
                         >
                           <ChevronRight className="h-5 w-5" />
                         </button>
-                        
-                        {/* Indicators */}
+
+                        {/* Dot indicators */}
                         <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5">
                           {imagesList.map((_, idx) => (
-                            <div key={idx} className={`h-1.5 w-1.5 rounded-full ${idx === currentImageIndex ? 'bg-primary' : 'bg-background/50'}`} />
+                            <div
+                              key={idx}
+                              className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                                idx === currentImageIndex ? 'bg-primary' : 'bg-background/50'
+                              }`}
+                            />
                           ))}
+                        </div>
+
+                        {/* Numeric counter badge */}
+                        <div className="absolute top-2 right-2 rounded-full bg-background/70 px-2 py-0.5 text-xs font-medium text-foreground backdrop-blur-sm">
+                          {currentImageIndex + 1} / {imagesList.length}
                         </div>
                       </>
                     )}

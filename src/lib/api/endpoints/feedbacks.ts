@@ -10,7 +10,7 @@ export const feedbacksApi = {
         return response.data;
     },
     replyToFeedback: async (id: number, replyText: string) => {
-        const response = await apiClient.post<ApiResponse<void>>(`/api/v1/admin/feedbacks/${id}/reply`, { replyText });
+        const response = await apiClient.post<ApiResponse<void>>(`/api/v1/admin/feedbacks/${id}/reply`, { adminReply: replyText });
         return response.data;
     }
 };
