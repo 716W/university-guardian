@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Star, MessageSquare, Reply, Filter } from "lucide-react";
+import { Star, Filter, CheckCircle, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/hooks/use-language";
 import { t } from "@/lib/i18n";
 import {
@@ -42,7 +43,7 @@ const Feedback = () => {
 
   const handleSendReply = () => {
     if (!selectedFeedback || !replyText.trim()) return;
-    replyMutation.mutate({ id: selectedFeedback.id, replyText: replyText.trim() }, {
+    replyMutation.mutate({ id: selectedFeedback.id, adminReply: replyText.trim() }, {
       onSuccess: () => {
         handleCloseReply();
       }
@@ -94,35 +95,32 @@ const Feedback = () => {
                   <span className="text-xs text-muted-foreground">{fb.createdAt ? new Date(fb.createdAt).toLocaleDateString() : ""}</span>
                 </div>
               </div>
-              <p className="mt-3 text-sm text-card-foreground leading-relaxed">{fb.message}</p>
-              
-              {hasReply && (
-                <div className="mt-3 ml-4 rounded-md bg-muted/40 p-3 border-l-2 border-primary">
-                  <span className="text-xs font-semibold text-primary block mb-1">Admin Reply</span>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {fb.adminReply || <span className="italic opacity-70">No text provided.</span>}
-                  </p>
-                </div>
+              {/* 1. BADGE CONDITION */}
+              {hasReply ? (
+                <Badge variant="outline" className="mt-3 bg-green-50 text-green-700 border-green-200">
+                  <CheckCircle className="w-3 h-3 mr-1" /> Replied
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="mt-3 bg-yellow-50 text-yellow-700 border-yellow-200">
+                  <Clock className="w-3 h-3 mr-1" /> Awaiting Reply
+                </Badge>
               )}
 
-              <div className="mt-4 flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  {hasReply ? (
-                    <span className="flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
-                      <Reply className="h-3 w-3" /> {t("replied", lang)}
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning">
-                      <MessageSquare className="h-3 w-3" /> {t("awaitingReply", lang)}
-                    </span>
-                  )}
+              <p className="mt-3 text-sm text-card-foreground leading-relaxed">{fb.message}</p>
+
+              {/* 2. ACTION BUTTON OR ADMIN REPLY BLOCK CONDITION */}
+              {hasReply ? (
+                <div className="mt-4 p-3 bg-gray-50 border-l-4 border-purple-500 rounded-r-md">
+                  <p className="text-xs font-bold text-purple-700 mb-1">Admin Reply</p>
+                  <p className="text-sm text-gray-700">{fb.adminReply || "No text provided."}</p>
                 </div>
-                {!hasReply && (
+              ) : (
+                <div className="mt-4 flex justify-end">
                   <Button size="sm" onClick={() => handleOpenReply(fb)}>
-                    {t("reply", lang)}
+                    Reply
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
             );
           })}

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, Eye, EyeOff, Shield } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -73,8 +73,8 @@ const Login = () => {
         }} />
         <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary to-primary/80" />
         <div className="relative z-10 flex flex-col items-center text-center px-12 max-w-md">
-          <div className="w-28 h-28 rounded-full bg-primary-foreground/15 backdrop-blur-sm border border-primary-foreground/20 flex items-center justify-center mb-8">
-            <Shield className="w-14 h-14 text-primary-foreground" />
+          <div className="w-28 h-28 rounded-full backdrop-blur-sm border-2 border-primary-foreground/30 flex items-center justify-center mb-8 overflow-hidden">
+            <img src="/logo.jpeg" alt="Hadramout University" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-3xl font-bold text-primary-foreground mb-3 tracking-tight">{t("lostFoundSystem", lang)}</h1>
           <p className="text-primary-foreground/70 text-lg leading-relaxed">{isRTL ? "جامعة حضرموت" : "Hadramout University"}</p>
@@ -92,8 +92,8 @@ const Login = () => {
         <div className="flex-1 flex items-center justify-center px-6 sm:px-12 lg:px-16">
           <div className="w-full max-w-md">
             <div className="lg:hidden flex flex-col items-center mb-8">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <Shield className="w-8 h-8 text-primary" />
+              <div className="w-16 h-16 rounded-full border-2 border-primary/20 flex items-center justify-center mb-4 overflow-hidden">
+                <img src="/logo.jpeg" alt="Hadramout University" className="w-full h-full object-cover" />
               </div>
               <p className="text-sm text-muted-foreground">{isRTL ? "جامعة حضرموت" : "Hadramout University"}</p>
             </div>
@@ -168,30 +168,7 @@ const Login = () => {
                 )}
               </Button>
 
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full h-11 text-sm font-medium"
-                onClick={() => {
-                  // Demo bypass: build a mock JWT with Super Admin role so the
-                  // dashboard is reachable without the backend at localhost:8080.
-                  const header = btoa(JSON.stringify({ alg: "none", typ: "JWT" }));
-                  const payload = btoa(
-                    JSON.stringify({
-                      sub: "demo-admin",
-                      name: "Demo Admin",
-                      "http://schemas.microsoft.com/ws/2008/06/identity/claims/role": "Super Admin",
-                      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 8,
-                    })
-                  );
-                  const demoToken = `${header}.${payload}.demo`;
-                  setTokens(demoToken);
-                  toast({ title: t("welcomeBack", lang), description: t("redirecting", lang) });
-                  navigate("/");
-                }}
-              >
-                {isRTL ? "الدخول كمسؤول تجريبي (بدون خادم)" : "Continue as Demo Admin (no backend)"}
-              </Button>
+
             </form>
           </div>
         </div>

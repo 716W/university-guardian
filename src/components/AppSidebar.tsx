@@ -11,7 +11,6 @@ import {
   ScrollText,
   MessageSquare,
   Settings,
-  GraduationCap,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -86,16 +85,16 @@ export function AppSidebar() {
     >
       {/* Header */}
       <div className={`flex items-center gap-3 px-4 h-16 border-b border-white/[0.06] ${collapsed ? "justify-center" : ""}`}>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/20">
-          <GraduationCap className="h-5 w-5 text-primary-foreground" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full overflow-hidden border-2 border-white/20">
+          <img src="/logo.jpeg" alt="Hadramout University" className="h-full w-full object-cover" />
         </div>
         {!collapsed && (
           <div className="flex flex-col overflow-hidden">
             <span className="truncate text-sm font-bold text-white">
-              {lang === "AR" ? "بوابة الأصول" : "HU Asset Gateway"}
+              {lang === "AR" ? "لوحة تحكم جامعة حضرموت" : "Hadramout University"}
             </span>
             <span className="truncate text-[11px] text-white/40">
-              {lang === "AR" ? "نظام الإدارة المركزي" : "Central Management System"}
+              {lang === "AR" ? "نظام الإدارة المركزي" : "Dashboard"}
             </span>
           </div>
         )}

@@ -18,5 +18,6 @@ export interface ReportImage {
 
 export interface ReportDetails extends ReportListItem {
     description?: string;
-    images?: string[];
+    /** Backend returns an array of image objects OR (legacy) an array of strings */
+    images?: ReportImage[] | string[];
 }
